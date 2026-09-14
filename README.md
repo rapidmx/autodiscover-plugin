@@ -2,11 +2,11 @@
 
 [![CI](https://github.com/RapidMX/autodiscover/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/RapidMX/autodiscover/actions/workflows/build.yml)
 [![Coverage Status](https://coveralls.io/repos/github/RapidMX/autodiscover/badge.svg?branch=main)](https://coveralls.io/github/RapidMX/autodiscover?branch=main)
-[![npm version](https://img.shields.io/npm/v/@rapidmx/autodiscover)](https://www.npmjs.com/package/@rapidmx/autodiscover)
+[![npm version](https://img.shields.io/npm/v/@rapidmx/autodiscover-plugin)](https://www.npmjs.com/package/@rapidmx/autodiscover-plugin)
 
 Autodiscover support for a [RapidMX](https://rapidmx.io) mail server. Lets a real mail client find this
-deployment's [`@rapidmx/activesync`](https://github.com/RapidMX/activesync) (EAS) and
-[`@rapidmx/mapi`](https://github.com/RapidMX/mapi) server URLs from just an email address: classic
+deployment's [`@rapidmx/activesync-plugin`](https://github.com/RapidMX/activesync) (EAS) and
+[`@rapidmx/mapi-plugin`](https://github.com/RapidMX/mapi) server URLs from just an email address: classic
 POX (`POST /autodiscover/autodiscover.xml`, serving either the EAS-only MobileSync response or, when a real
 Outlook desktop client requests it via `AcceptableResponseSchema`, an Outlook/EXCH response pointing at the
 MAPI/HTTP endpoint) and the modern JSON variant Microsoft calls "Autodiscover v2"
@@ -32,20 +32,20 @@ server is mounted — an ops/deployment task, not something this package configu
 * Mailbox resolution against both `Mailbox.primarySmtpAddress` and `Mailbox.aliasAddresses`
 * Deliberately unauthenticated by design — reveals only deployment-wide server URLs, never a per-mailbox
   secret
-* MongoDB and SQL persistence backends (`@rapidmx/autodiscover/mongo`, `@rapidmx/autodiscover/sql`)
+* MongoDB and SQL persistence backends (`@rapidmx/autodiscover-plugin/mongo`, `@rapidmx/autodiscover-plugin/sql`)
 
 ## Installation
 
 ### NPM
 
 ```
-npm i @rapidmx/autodiscover
+npm i @rapidmx/autodiscover-plugin
 ```
 
 ### Yarn
 
 ```
-yarn add @rapidmx/autodiscover
+yarn add @rapidmx/autodiscover-plugin
 ```
 
 ## Requirements
@@ -62,11 +62,11 @@ The following peer dependencies are required:
 
 ## Usage
 
-Mount `AutodiscoverRouteMongo`/`AutodiscoverRouteSQL` (from `@rapidmx/autodiscover/mongo` or `/sql`) with a
+Mount `AutodiscoverRouteMongo`/`AutodiscoverRouteSQL` (from `@rapidmx/autodiscover-plugin/mongo` or `/sql`) with a
 one-line subclass supplying your deployment's EAS and MAPI URLs:
 
 ```ts
-import { AutodiscoverRouteMongo } from "@rapidmx/autodiscover/mongo";
+import { AutodiscoverRouteMongo } from "@rapidmx/autodiscover-plugin/mongo";
 import { RouteDecorators } from "@rapidrest/service-core";
 const { Route } = RouteDecorators;
 

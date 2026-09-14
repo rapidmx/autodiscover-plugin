@@ -53,6 +53,31 @@ describe("AutodiscoverXml Tests", () => {
         it("Returns undefined for a garbage/non-XML body.", () => {
             expect(extractEmailAddress("not xml at all")).toBeUndefined();
         });
+
+        it("Ignores self-closing, differently-named and mismatched-close elements.", () => {
+            expect(extractEmailAddress(`<EMailAddress/><EMailAddressX>x@example.com</EMailAddressX>`)).toBeUndefined();
+            expect(extractEmailAddress(`<EMailAddress>a@example.com</Other><EMailAddress>b@example.com</EMailAddress>`)).toBe(
+                "b@example.com",
+            );
+            expect(extractEmailAddress(`<EMailAddress attr="1">c@example.com</ns:EMailAddress>`)).toBe("c@example.com");
+        });
+
+        it("Scans pathological unterminated/whitespace-padded bodies in linear time.", () => {
+            const bodies = [
+                `<EMailAddress>${" ".repeat(1_000_000)}`,
+                `<EMailAddress>${" ".repeat(500_000)}<${" ".repeat(500_000)}`,
+                "<EMailAddress".repeat(100_000),
+                "<EMailAddress>".repeat(100_000),
+                `<a:EMailAddress ${"<EMailAddress ".repeat(100_000)}>`,
+                `<AcceptableResponseSchema>${"\t".repeat(1_000_000)}`,
+            ];
+            const started = Date.now();
+            for (const body of bodies) {
+                expect(extractEmailAddress(body)).toBeUndefined();
+                expect(extractAcceptableResponseSchema(body)).toBeUndefined();
+            }
+            expect(Date.now() - started).toBeLessThan(2000);
+        });
     });
 
     describe("escapeXml", () => {

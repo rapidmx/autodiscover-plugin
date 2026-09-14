@@ -88,3 +88,25 @@ Keep entries terse — this is a reference, not a transcript.
   own `.claude/NOTES.md` (`d:\github\rapidrest\mail`) — that history wasn't duplicated here since
   it predates this repo's existence and mostly concerns code that never lived under this package's
   own directory.
+
+### 2026-09-14 — Review-finding fix pass (POX ReDoS, public_url validation, v2 double-decode)
+
+Each finding was confirmed in code first. Not committed; no version/peerDependency/manifest changes (the
+manifest `requires` on ActiveSync and MAPI stays, per JP).
+
+- **POX ReDoS (unauthenticated).** `EMAIL_ELEMENT_PATTERN`/`ACCEPTABLE_RESPONSE_SCHEMA_PATTERN`
+  (`\s*([^<]*?)\s*<\/...`) backtracked cubically: `<EMailAddress>` plus 4000 spaces and no close tag took
+  about 13.5s in Node. Both replaced by one linear forward tag scan (`extractElementText` in
+  `AutodiscoverXml.ts`). It matches the local name exactly with an optional `ns:` prefix, case-insensitive.
+  The old regex also accepted any `[\w:]*` prefix such as `FooEMailAddress`. Self-closing elements are skipped.
+  `pox()` also returns `413` for a body over `MAX_POX_BODY_BYTES` (16KB) before scanning.
+- **`public_url` validation.** A private `baseUrl` getter trims the value, parses it with `URL`, and requires
+  `https:` (`http:` only for localhost/127.0.0.1/[::1]). It rejects credentials, `?` and `#` (checked on the raw
+  string, since `URL.search` is empty for a bare trailing `?`) and joins origin+path without a trailing slash.
+  An invalid value logs a warning at `@Init` and advertises nothing.
+- **v2 double decode.** service-core's uWS/Bun routers already `decodeURIComponent` path params, so
+  `v2()`'s own second decode threw on a literal `%` and returned 500. Removed.
+- README package names updated to the `-plugin` names.
+- Tests: linear-time and edge-case tests in `AutodiscoverXml.test.ts`; URL-validation and 413 unit tests in
+  `test/routes/BaseAutodiscoverRoute.test.ts`; pathological-body timing, 413, and `%` address HTTP tests in
+  `test/routes/mongo/AutodiscoverRoute.test.ts`.

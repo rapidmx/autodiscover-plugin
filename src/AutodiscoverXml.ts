@@ -13,15 +13,66 @@
  * already took, just for text XML instead of binary.
  */
 
-const EMAIL_ELEMENT_PATTERN = /<[\w:]*EMailAddress[^>]*>\s*([^<]*?)\s*<\/[\w:]*EMailAddress>/i;
+/** Reads an XML name (`[\w:.-]*`) starting at `start`, returning it lower-cased plus the index just past it. */
+function readTagName(xml: string, start: number): { name: string; end: number } {
+    let end = start;
+    while (end < xml.length && /[\w:.-]/.test(xml[end])) {
+        end++;
+    }
+    return { name: xml.slice(start, end).toLowerCase(), end };
+}
+
+/** Whether a (lower-cased) tag name is `localName`, optionally namespace-prefixed (`ns:localName`). */
+function isElement(name: string, localName: string): boolean {
+    return name === localName || name.endsWith(`:${localName}`);
+}
 
 /**
- * Extracts the request's `<EMailAddress>` text content via a small, tightly-scoped regex rather than a DOM
+ * Returns the raw text content of the first `<localName>text</localName>` element (namespace prefix and
+ * attributes allowed, case-insensitive) whose content is plain text. A single forward, linear-time scan -
+ * deliberately NOT a regex: this runs on an unauthenticated request body, and the previous
+ * `\s*([^<]*?)\s*<\/...>` pattern backtracked cubically on an unterminated element padded with whitespace.
+ * Every `indexOf` below starts past the previous one, so no character is rescanned more than a constant
+ * number of times.
+ */
+function extractElementText(xml: string, localName: string): string | undefined {
+    const target = localName.toLowerCase();
+    let pos = 0;
+    while ((pos = xml.indexOf("<", pos)) !== -1) {
+        const open = readTagName(xml, pos + 1);
+        pos = open.end;
+        if (!isElement(open.name, target)) {
+            continue;
+        }
+        const gt = xml.indexOf(">", pos);
+        if (gt === -1) {
+            return undefined;
+        }
+        pos = gt + 1;
+        if (xml[gt - 1] === "/") {
+            continue; // Self-closing, so no text content.
+        }
+        const lt = xml.indexOf("<", pos);
+        if (lt === -1) {
+            return undefined;
+        }
+        if (xml[lt + 1] === "/") {
+            const close = readTagName(xml, lt + 2);
+            if (isElement(close.name, target) && xml[close.end] === ">") {
+                return xml.slice(pos, lt);
+            }
+        }
+        pos = lt;
+    }
+    return undefined;
+}
+
+/**
+ * Extracts the request's `<EMailAddress>` text content via a small, linear-time tag scan rather than a DOM
  * parse. Never resolves entities/DTDs - only the literal text between the open/close tags is ever inspected.
  */
 export function extractEmailAddress(xml: string): string | undefined {
-    const match = EMAIL_ELEMENT_PATTERN.exec(xml);
-    const value = match?.[1]?.trim();
+    const value = extractElementText(xml, "EMailAddress")?.trim();
     return value ? decodeXmlEntities(value) : undefined;
 }
 
@@ -50,22 +101,17 @@ export interface AutodiscoverPoxSuccess {
     easUrl: string;
 }
 
-const ACCEPTABLE_RESPONSE_SCHEMA_PATTERN =
-    /<[\w:]*AcceptableResponseSchema[^>]*>\s*([^<]*?)\s*<\/[\w:]*AcceptableResponseSchema>/i;
-
 /** The `AcceptableResponseSchema` value a real Outlook desktop client sends to request the Outlook/EXCH
  * response shape (`buildOutlookSuccessXml`) instead of the EAS-only MobileSync one - confirmed against
  * `[MS-OXDSCLI]`'s own Autodiscover Response XSD, whose target namespace is exactly this value. */
 export const OUTLOOK_RESPONSE_SCHEMA = "http://schemas.microsoft.com/exchange/autodiscover/outlook/responseschema/2006a";
 
 /**
- * Extracts the request's `<AcceptableResponseSchema>` text content via the same small, tightly-scoped regex
- * approach as `extractEmailAddress` - never a DOM parse, same rationale (unauthenticated, internet-facing
- * endpoint).
+ * Extracts the request's `<AcceptableResponseSchema>` text content via the same linear-time tag scan as
+ * `extractEmailAddress` - never a DOM parse, same rationale (unauthenticated, internet-facing endpoint).
  */
 export function extractAcceptableResponseSchema(xml: string): string | undefined {
-    const match = ACCEPTABLE_RESPONSE_SCHEMA_PATTERN.exec(xml);
-    return match?.[1]?.trim() || undefined;
+    return extractElementText(xml, "AcceptableResponseSchema")?.trim() || undefined;
 }
 
 /**

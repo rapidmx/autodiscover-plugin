@@ -165,6 +165,25 @@ describe("Route:AutodiscoverRouteMongo Tests", () => {
             expect(result.status).toBe(400);
         });
 
+        it("Answers a pathological unterminated, whitespace-padded EMailAddress body quickly with 400.", async () => {
+            const started = Date.now();
+            const result = await request(server.getApplication())
+                .post(`${baseUrl}/autodiscover.xml`)
+                .set("Content-Type", "text/xml")
+                .send(`<EMailAddress>${" ".repeat(15000)}`);
+            expect(result.status).toBe(400);
+            expect(Date.now() - started).toBeLessThan(1000);
+        });
+
+        it("Returns 413 for a request body over 16KB without scanning it.", async () => {
+            const mailbox = await createMailbox();
+            const result = await request(server.getApplication())
+                .post(`${baseUrl}/autodiscover.xml`)
+                .set("Content-Type", "text/xml")
+                .send(poxRequestBody(mailbox.primarySmtpAddress) + " ".repeat(17 * 1024));
+            expect(result.status).toBe(413);
+        });
+
         it("Returns an Outlook/EXCH mapiHttp response when AcceptableResponseSchema requests the Outlook schema.", async () => {
             const mailbox = await createMailbox({ displayName: "Ada Lovelace" });
 
@@ -249,6 +268,14 @@ describe("Route:AutodiscoverRouteMongo Tests", () => {
         it("Returns 404 JSON for an address with no matching Mailbox.", async () => {
             const result = await request(server.getApplication()).get(
                 `${baseUrl}/autodiscover.json/v1.0/nobody@example.com?Protocol=ActiveSync`,
+            );
+            expect(result.status).toBe(404);
+            expect(result.body.ErrorCode).toBe("UserNotFound");
+        });
+
+        it("Returns 404 JSON (not 500) for an address containing a literal percent sign.", async () => {
+            const result = await request(server.getApplication()).get(
+                `${baseUrl}/autodiscover.json/v1.0/${encodeURIComponent("100%off@example.com")}?Protocol=ActiveSync`,
             );
             expect(result.status).toBe(404);
             expect(result.body.ErrorCode).toBe("UserNotFound");

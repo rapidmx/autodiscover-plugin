@@ -19,6 +19,9 @@ export const ACTIVESYNC_PLUGIN = "@rapidmx/activesync-plugin";
 export const MAPI_PLUGIN = "@rapidmx/mapi-plugin";
 const { Get, Param, Post, Query, Request, Response } = RouteDecorators;
 
+/** The largest POX request body (in bytes) `pox()` will scan; anything bigger gets a `413`. */
+export const MAX_POX_BODY_BYTES = 16 * 1024;
+
 /**
  * Abstract base for the two Autodiscover endpoints a real mail client uses to find this deployment's EAS
  * server URL from just an email address - classic POX (`POST /autodiscover/autodiscover.xml`, per
@@ -88,17 +91,51 @@ export abstract class BaseAutodiscoverRoute<M extends Mailbox> {
         return address;
     }
 
-    private endpointUrl(plugin: string, path: string): string | undefined {
-        if (!this.publicUrl || !PluginRegistry.isActive(plugin)) {
+    /**
+     * Normalizes `publicUrl` into a base URL (origin plus path, no trailing slash), or `undefined` when it's
+     * unset or unsafe to advertise: it must parse, use `https:` (plain `http:` is only tolerated for a loopback
+     * host, for local development), and carry no credentials, query string or fragment - any of which would
+     * produce a broken or insecure endpoint URL once a path is appended.
+     */
+    private get baseUrl(): string | undefined {
+        const value: string = this.publicUrl.trim();
+        if (!value) {
             return undefined;
         }
-        return `${this.publicUrl.replace(/\/+$/, "")}${path}`;
+        let url: URL;
+        try {
+            url = new URL(value);
+        } catch {
+            return undefined;
+        }
+        const loopback: boolean = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+        if (url.protocol !== "https:" && !(url.protocol === "http:" && loopback)) {
+            return undefined;
+        }
+        // Checked on the raw string: `URL.search`/`hash` are empty for a bare trailing `?`/`#`.
+        if (value.includes("?") || value.includes("#") || url.username || url.password) {
+            return undefined;
+        }
+        return `${url.origin}${url.pathname.replace(/\/+$/, "")}`;
+    }
+
+    private endpointUrl(plugin: string, path: string): string | undefined {
+        const base: string | undefined = this.baseUrl;
+        if (!base || !PluginRegistry.isActive(plugin)) {
+            return undefined;
+        }
+        return `${base}${path}`;
     }
 
     @Init
     public async init(): Promise<void> {
-        if (!this.publicUrl) {
+        if (!this.publicUrl.trim()) {
             this.logger?.warn("Autodiscover has no mail:autodiscover:public_url set, so it can't point clients at any protocol.");
+        } else if (!this.baseUrl) {
+            this.logger?.warn(
+                "Autodiscover's mail:autodiscover:public_url is not a valid https:// URL without a query string or " +
+                    "fragment, so it can't point clients at any protocol.",
+            );
         }
         this.mailboxRepo = await this._objectFactory!.newInstance(RepoUtils, {
             name: this.mailboxClass.name,
@@ -133,6 +170,12 @@ export abstract class BaseAutodiscoverRoute<M extends Mailbox> {
             return;
         }
 
+        // A real Autodiscover request is well under 1KB; refuse to even scan anything larger on this
+        // unauthenticated endpoint.
+        if (req.rawBody && req.rawBody.length > MAX_POX_BODY_BYTES) {
+            res.status(413).send();
+            return;
+        }
         const body: string = req.rawBody ? req.rawBody.toString("utf-8") : "";
         const email: string | undefined = extractEmailAddress(body);
         if (!email) {
@@ -184,7 +227,8 @@ export abstract class BaseAutodiscoverRoute<M extends Mailbox> {
             return;
         }
 
-        const mailbox: M | undefined = await this.resolveMailbox(decodeURIComponent(email));
+        // The router has already percent-decoded path params; decoding again would throw (-> 500) on a literal `%`.
+        const mailbox: M | undefined = await this.resolveMailbox(email);
         if (!mailbox) {
             res.status(404).json({
                 ErrorCode: "UserNotFound",
