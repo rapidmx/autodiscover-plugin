@@ -69,8 +69,8 @@ describe("Route:AutodiscoverRouteMongo Tests", () => {
         registerTestDoubles(objectFactory);
         await server.start();
         PluginRegistry.setLoaded([
-            { name: "@rapidmx/activesync", version: "1.0.0" },
-            { name: "@rapidmx/mapi", version: "1.0.0" },
+            { name: "@rapidmx/activesync-plugin", version: "1.0.0" },
+            { name: "@rapidmx/mapi-plugin", version: "1.0.0" },
         ]);
 
         const connMgr: ConnectionManager | undefined = objectFactory.getInstance(ConnectionManager);
@@ -188,13 +188,13 @@ describe("Route:AutodiscoverRouteMongo Tests", () => {
     describe("protocols whose plugins aren't loaded", () => {
         afterEach(() => {
             PluginRegistry.setLoaded([
-                { name: "@rapidmx/activesync", version: "1.0.0" },
-                { name: "@rapidmx/mapi", version: "1.0.0" },
+                { name: "@rapidmx/activesync-plugin", version: "1.0.0" },
+                { name: "@rapidmx/mapi-plugin", version: "1.0.0" },
             ]);
         });
 
         it("Returns 404 from POX and 400 from v2 when ActiveSync isn't loaded.", async () => {
-            PluginRegistry.setLoaded([{ name: "@rapidmx/mapi", version: "1.0.0" }]);
+            PluginRegistry.setLoaded([{ name: "@rapidmx/mapi-plugin", version: "1.0.0" }]);
             const mailbox = await createMailbox();
             const pox = await request(server.getApplication())
                 .post(`${baseUrl}/autodiscover.xml`)
@@ -209,7 +209,7 @@ describe("Route:AutodiscoverRouteMongo Tests", () => {
         });
 
         it("Returns 404 to an Outlook client when MAPI isn't loaded.", async () => {
-            PluginRegistry.setLoaded([{ name: "@rapidmx/activesync", version: "1.0.0" }]);
+            PluginRegistry.setLoaded([{ name: "@rapidmx/activesync-plugin", version: "1.0.0" }]);
             const mailbox = await createMailbox();
             const result = await request(server.getApplication())
                 .post(`${baseUrl}/autodiscover.xml`)

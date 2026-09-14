@@ -70,7 +70,7 @@ describe("BaseAutodiscoverRoute Tests (guard clauses only)", () => {
         route.publicUrl = "";
         await route.init();
         expect(route.logger.warn).toHaveBeenCalledWith(expect.stringMatching(/mail:autodiscover:public_url/));
-        PluginRegistry.setLoaded([{ name: "@rapidmx/activesync", version: "1.0.0" }]);
+        PluginRegistry.setLoaded([{ name: "@rapidmx/activesync-plugin", version: "1.0.0" }]);
         try {
             expect(route.easUrl).toBeUndefined();
             route.publicUrl = "https://mail.example.com//";

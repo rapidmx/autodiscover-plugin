@@ -15,8 +15,8 @@ import { Mailbox, PluginRegistry } from "@rapidmx/restapi";
 const { Config, Init, Logger } = ObjectDecorators;
 
 /** The plugin packages whose endpoints Autodiscover advertises. */
-export const ACTIVESYNC_PLUGIN = "@rapidmx/activesync";
-export const MAPI_PLUGIN = "@rapidmx/mapi";
+export const ACTIVESYNC_PLUGIN = "@rapidmx/activesync-plugin";
+export const MAPI_PLUGIN = "@rapidmx/mapi-plugin";
 const { Get, Param, Post, Query, Request, Response } = RouteDecorators;
 
 /**
@@ -47,7 +47,7 @@ const { Get, Param, Post, Query, Request, Response } = RouteDecorators;
  *
  * `mailboxClass` is supplied by the Mongo/SQL concrete subclasses following the exact one-line-per-backend
  * pattern used throughout this library. The advertised URLs are built from the `mail:autodiscover:public_url`
- * setting, and each protocol is only advertised while its plugin (`@rapidmx/activesync`, `@rapidmx/mapi`) is
+ * setting, and each protocol is only advertised while its plugin (`@rapidmx/activesync-plugin`, `@rapidmx/mapi-plugin`) is
  * loaded, so a client is never pointed at an endpoint this deployment doesn't serve.
  *
  * @author Jean-Philippe Steinmetz
