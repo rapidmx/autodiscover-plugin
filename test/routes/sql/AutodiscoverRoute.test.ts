@@ -94,7 +94,8 @@ describe("Route:AutodiscoverRouteSQL Tests", () => {
 
             expect(result.status).toBe(200);
             expect(result.text).toContain(`<autodiscover:EMailAddress>${mailbox.primarySmtpAddress}</autodiscover:EMailAddress>`);
-            expect(result.text).toContain("<autodiscover:DisplayName>Ada Lovelace</autodiscover:DisplayName>");
+            expect(result.text).toContain(`<autodiscover:DisplayName>${mailbox.primarySmtpAddress}</autodiscover:DisplayName>`);
+            expect(result.text).not.toContain("Ada Lovelace");
         });
 
         it("Matches against the serialized aliasAddresses column via the escaped LIKE override.", async () => {
@@ -133,6 +134,17 @@ describe("Route:AutodiscoverRouteSQL Tests", () => {
                 .send(poxRequestBody("b_b@example.com"));
 
             expect(result.status).toBe(404);
+        });
+
+        it("Returns 400, never a directory match, for query-operator address values.", async () => {
+            const mailbox = await createMailbox({ aliasAddresses: ["alias@example.com"] });
+            for (const value of ["like(*)", "regex(^a)", `in(${mailbox.primarySmtpAddress},alias@example.com)`]) {
+                const result = await request(server.getApplication())
+                    .post(`${baseUrl}/autodiscover.xml`)
+                    .set("Content-Type", "text/xml")
+                    .send(poxRequestBody(value));
+                expect(result.status).toBe(400);
+            }
         });
 
         it("Returns 404 for an address with no matching Mailbox.", async () => {
@@ -215,6 +227,17 @@ describe("Route:AutodiscoverRouteSQL Tests", () => {
             );
             expect(result.status).toBe(404);
             expect(result.body.ErrorCode).toBe("UserNotFound");
+        });
+
+        it("Returns 404 JSON, never a directory match, for query-operator or non-plain address values.", async () => {
+            const mailbox = await createMailbox({ aliasAddresses: ["alias@example.com"] });
+            for (const value of ["like(*)", "regex(^a)", `in(${mailbox.primarySmtpAddress},alias@example.com)`, `"alias@example.com"`]) {
+                const result = await request(server.getApplication()).get(
+                    `${baseUrl}/autodiscover.json/v1.0/${encodeURIComponent(value)}?Protocol=ActiveSync`,
+                );
+                expect(result.status).toBe(404);
+                expect(result.body.ErrorCode).toBe("UserNotFound");
+            }
         });
 
         it("Returns 400 JSON for an unsupported Protocol value.", async () => {

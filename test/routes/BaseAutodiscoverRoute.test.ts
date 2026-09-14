@@ -134,6 +134,33 @@ describe("BaseAutodiscoverRoute Tests (guard clauses only)", () => {
         expect(find).not.toHaveBeenCalled();
     });
 
+    it("never queries for a non-plain address, and always queries a plain one as a literal eq() value.", async () => {
+        const route = objectFactory.newInstance<TestAutodiscoverRoute>(TestAutodiscoverRoute, {
+            initialize: false,
+        });
+        const find = vi.fn().mockResolvedValue([]);
+        (route as any).mailboxRepo = { find };
+        PluginRegistry.setLoaded([{ name: "@rapidmx/activesync-plugin", version: "1.0.0" }]);
+        (route as any).publicUrl = "https://mail.example.com";
+        try {
+            for (const value of ["like(*)", "regex(^a)", "in(a@example.com,b@example.com)", "ne(a@example.com)", "a@b@c"]) {
+                const res = makeRes();
+                await route.pox({ rawBody: Buffer.from(`<EMailAddress>${value}</EMailAddress>`) } as any, res);
+                expect(res.status).toHaveBeenCalledWith(400);
+                const v2Res = makeRes();
+                await route.v2(value, "ActiveSync", v2Res);
+                expect(v2Res.status).toHaveBeenCalledWith(404);
+            }
+            expect(find).not.toHaveBeenCalled();
+
+            await route.v2("  Ada@Example.com ", "ActiveSync", makeRes());
+            expect(find).toHaveBeenCalledWith({ primarySmtpAddress: "eq(ada@example.com)", limit: 1 }, { ignoreACL: true, limit: 1 });
+            expect(find).toHaveBeenCalledWith({ aliasAddresses: "eq(ada@example.com)", limit: 1 }, { ignoreACL: true, limit: 1 });
+        } finally {
+            PluginRegistry.setLoaded([]);
+        }
+    });
+
     it("v2() sends a bare 500 when mailboxRepo is not set.", async () => {
         const route = objectFactory.newInstance<TestAutodiscoverRoute>(TestAutodiscoverRoute, {
             initialize: false,

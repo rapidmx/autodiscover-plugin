@@ -62,6 +62,29 @@ describe("AutodiscoverXml Tests", () => {
             expect(extractEmailAddress(`<EMailAddress attr="1">c@example.com</ns:EMailAddress>`)).toBe("c@example.com");
         });
 
+        it("Allows whitespace before the closing tag's '>'.", () => {
+            expect(extractEmailAddress(`<EMailAddress>a@example.com</EMailAddress \r\n\t>`)).toBe("a@example.com");
+            expect(extractEmailAddress(`<EMailAddress>a@example.com</EMailAddress x>`)).toBeUndefined();
+        });
+
+        it("Skips comments, both inside the element and around it.", () => {
+            expect(extractEmailAddress(`<EMailAddress>a<!-- note -->@example.com<!----></EMailAddress>`)).toBe("a@example.com");
+            expect(
+                extractEmailAddress(`<!-- <EMailAddress>old@example.com</EMailAddress> --><EMailAddress>new@example.com</EMailAddress>`),
+            ).toBe("new@example.com");
+            expect(extractEmailAddress(`<!-- <EMailAddress>old@example.com</EMailAddress>`)).toBeUndefined();
+            expect(extractEmailAddress(`<EMailAddress>a@example.com<!-- unterminated`)).toBeUndefined();
+        });
+
+        it("Unwraps CDATA sections verbatim (no entity decoding inside them).", () => {
+            expect(extractEmailAddress(`<EMailAddress><![CDATA[ a@example.com ]]></EMailAddress>`)).toBe("a@example.com");
+            expect(extractEmailAddress(`<EMailAddress>a&amp;<![CDATA[&amp;<b>]]>@example.com</EMailAddress>`)).toBe(
+                "a&&amp;<b>@example.com",
+            );
+            expect(extractEmailAddress(`<![CDATA[<EMailAddress>x@example.com</EMailAddress>]]>`)).toBeUndefined();
+            expect(extractEmailAddress(`<EMailAddress><![CDATA[a@example.com</EMailAddress>`)).toBeUndefined();
+        });
+
         it("Scans pathological unterminated/whitespace-padded bodies in linear time.", () => {
             const bodies = [
                 `<EMailAddress>${" ".repeat(1_000_000)}`,

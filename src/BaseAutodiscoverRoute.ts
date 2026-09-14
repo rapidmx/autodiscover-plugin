@@ -22,6 +22,12 @@ const { Get, Param, Post, Query, Request, Response } = RouteDecorators;
 /** The largest POX request body (in bytes) `pox()` will scan; anything bigger gets a `413`. */
 export const MAX_POX_BODY_BYTES = 16 * 1024;
 
+/** The longest email address looked up (RFC 5321's 254-character forward-path limit). */
+export const MAX_ADDRESS_LENGTH = 254;
+
+/** A single plain `local@domain` address: nothing the search query parser could read as an operator or a list. */
+const PLAIN_ADDRESS_PATTERN = /^[^\s@(),"\\]+@[^\s@(),"\\]+$/;
+
 /**
  * Abstract base for the two Autodiscover endpoints a real mail client uses to find this deployment's EAS
  * server URL from just an email address - classic POX (`POST /autodiscover/autodiscover.xml`, per
@@ -88,7 +94,7 @@ export abstract class BaseAutodiscoverRoute<M extends Mailbox> {
      * identically to `MailIngestRouteSQL`).
      */
     protected aliasQueryValue(address: string): any {
-        return address;
+        return `eq(${address})`;
     }
 
     /**
@@ -143,11 +149,23 @@ export abstract class BaseAutodiscoverRoute<M extends Mailbox> {
         });
     }
 
-    private async resolveMailbox(email: string): Promise<M | undefined> {
+    /**
+     * Normalizes an unauthenticated caller's email value into a single plain address, or `undefined` when it isn't
+     * one. service-core's search query parser interprets `op(value)` strings (`like(*)`, `regex(^a)`, `in(a,b)`,
+     * `ne(x)`, ...), so an arbitrary value reaching `find()` would let an anonymous caller enumerate the mailbox
+     * directory; rejecting whitespace, parentheses, commas, quotes and backslashes (plus RFC 5321's 254-character
+     * length cap) up front means no query is ever issued for such a value.
+     */
+    private normalizeAddress(email: string): string | undefined {
         const address: string = email.trim().toLowerCase();
+        return address.length <= MAX_ADDRESS_LENGTH && PLAIN_ADDRESS_PATTERN.test(address) ? address : undefined;
+    }
+
+    /** Looks up a mailbox by an already-`normalizeAddress()`ed address, always as a literal `eq(...)` value. */
+    private async resolveMailbox(address: string): Promise<M | undefined> {
         const [byPrimary, byAlias] = await Promise.all([
-            this.mailboxRepo!.find({ primarySmtpAddress: address }, { ignoreACL: true, limit: 1 }),
-            this.mailboxRepo!.find({ aliasAddresses: this.aliasQueryValue(address) }, { ignoreACL: true, limit: 1 }),
+            this.mailboxRepo!.find({ primarySmtpAddress: `eq(${address})`, limit: 1 }, { ignoreACL: true, limit: 1 }),
+            this.mailboxRepo!.find({ aliasAddresses: this.aliasQueryValue(address), limit: 1 }, { ignoreACL: true, limit: 1 }),
         ]);
         return byPrimary[0] ?? byAlias[0];
     }
@@ -177,7 +195,8 @@ export abstract class BaseAutodiscoverRoute<M extends Mailbox> {
             return;
         }
         const body: string = req.rawBody ? req.rawBody.toString("utf-8") : "";
-        const email: string | undefined = extractEmailAddress(body);
+        const extracted: string | undefined = extractEmailAddress(body);
+        const email: string | undefined = extracted ? this.normalizeAddress(extracted) : undefined;
         if (!email) {
             res.status(400).send();
             return;
@@ -196,9 +215,11 @@ export abstract class BaseAutodiscoverRoute<M extends Mailbox> {
             res.status(404).send();
             return;
         }
+        // The display name is never disclosed to this anonymous caller (see the class doc): the address they
+        // already supplied stands in for it, which keeps the Outlook schema's required `DisplayName` populated.
         const xml: string = outlook
-            ? buildOutlookSuccessXml({ emailAddress: email, displayName: mailbox.displayName, mapiUrl: url })
-            : buildPoxSuccessXml({ emailAddress: email, displayName: mailbox.displayName, easUrl: url });
+            ? buildOutlookSuccessXml({ emailAddress: email, displayName: email, mapiUrl: url })
+            : buildPoxSuccessXml({ emailAddress: email, displayName: email, easUrl: url });
         res.setHeader("Content-Type", "application/xml; charset=utf-8").status(200).send(xml);
     }
 
@@ -228,7 +249,8 @@ export abstract class BaseAutodiscoverRoute<M extends Mailbox> {
         }
 
         // The router has already percent-decoded path params; decoding again would throw (-> 500) on a literal `%`.
-        const mailbox: M | undefined = await this.resolveMailbox(email);
+        const address: string | undefined = this.normalizeAddress(email);
+        const mailbox: M | undefined = address ? await this.resolveMailbox(address) : undefined;
         if (!mailbox) {
             res.status(404).json({
                 ErrorCode: "UserNotFound",

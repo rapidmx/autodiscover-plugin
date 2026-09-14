@@ -27,18 +27,59 @@ function isElement(name: string, localName: string): boolean {
     return name === localName || name.endsWith(`:${localName}`);
 }
 
+const COMMENT_OPEN = "<!--";
+const COMMENT_CLOSE = "-->";
+const CDATA_OPEN = "<![CDATA[";
+const CDATA_CLOSE = "]]>";
+
 /**
- * Returns the raw text content of the first `<localName>text</localName>` element (namespace prefix and
- * attributes allowed, case-insensitive) whose content is plain text. A single forward, linear-time scan -
- * deliberately NOT a regex: this runs on an unauthenticated request body, and the previous
- * `\s*([^<]*?)\s*<\/...>` pattern backtracked cubically on an unterminated element padded with whitespace.
- * Every `indexOf` below starts past the previous one, so no character is rescanned more than a constant
- * number of times.
+ * If a `<!-- -->` comment or `<![CDATA[...]]>` section starts at `lt`, returns the index just past its end
+ * (`-1` when it's unterminated) plus the CDATA section's verbatim content; `undefined` for anything else.
+ */
+function skipCommentOrCdata(xml: string, lt: number): { end: number; cdata?: string } | undefined {
+    const comment = xml.startsWith(COMMENT_OPEN, lt);
+    if (!comment && !xml.startsWith(CDATA_OPEN, lt)) {
+        return undefined;
+    }
+    const [open, close] = comment ? [COMMENT_OPEN, COMMENT_CLOSE] : [CDATA_OPEN, CDATA_CLOSE];
+    const closeAt = xml.indexOf(close, lt + open.length);
+    if (closeAt === -1) {
+        return { end: -1 };
+    }
+    return { end: closeAt + close.length, cdata: comment ? undefined : xml.slice(lt + open.length, closeAt) };
+}
+
+/** Returns the index of the first non-whitespace character at or after `start`. */
+function skipWhitespace(xml: string, start: number): number {
+    let end = start;
+    while (end < xml.length && /\s/.test(xml[end])) {
+        end++;
+    }
+    return end;
+}
+
+/**
+ * Returns the text content of the first `<localName>text</localName>` element (namespace prefix and attributes
+ * allowed, case-insensitive, whitespace allowed before the closing tag's `>`) whose content is plain text:
+ * entities are decoded, `<![CDATA[...]]>` sections are unwrapped verbatim and `<!-- -->` comments are dropped.
+ * Comments/CDATA outside such an element are skipped whole, so a commented-out element never matches. A single
+ * forward, linear-time scan - deliberately NOT a regex: this runs on an unauthenticated request body, and the
+ * previous `\s*([^<]*?)\s*<\/...>` pattern backtracked cubically on an unterminated element padded with
+ * whitespace. Every `indexOf` below starts past the previous one, so no character is rescanned more than a
+ * constant number of times.
  */
 function extractElementText(xml: string, localName: string): string | undefined {
     const target = localName.toLowerCase();
     let pos = 0;
     while ((pos = xml.indexOf("<", pos)) !== -1) {
+        const special = skipCommentOrCdata(xml, pos);
+        if (special) {
+            if (special.end === -1) {
+                return undefined;
+            }
+            pos = special.end;
+            continue;
+        }
         const open = readTagName(xml, pos + 1);
         pos = open.end;
         if (!isElement(open.name, target)) {
@@ -52,16 +93,30 @@ function extractElementText(xml: string, localName: string): string | undefined 
         if (xml[gt - 1] === "/") {
             continue; // Self-closing, so no text content.
         }
-        const lt = xml.indexOf("<", pos);
+        const parts: string[] = [];
+        let lt: number;
+        while ((lt = xml.indexOf("<", pos)) !== -1) {
+            parts.push(decodeXmlEntities(xml.slice(pos, lt)));
+            const special = skipCommentOrCdata(xml, lt);
+            if (!special) {
+                break;
+            }
+            if (special.end === -1) {
+                return undefined;
+            }
+            parts.push(special.cdata ?? "");
+            pos = special.end;
+        }
         if (lt === -1) {
             return undefined;
         }
         if (xml[lt + 1] === "/") {
             const close = readTagName(xml, lt + 2);
-            if (isElement(close.name, target) && xml[close.end] === ">") {
-                return xml.slice(pos, lt);
+            if (isElement(close.name, target) && xml[skipWhitespace(xml, close.end)] === ">") {
+                return parts.join("");
             }
         }
+        // A child element or a mismatched close tag, so not plain text content: resume the outer scan here.
         pos = lt;
     }
     return undefined;
@@ -72,8 +127,7 @@ function extractElementText(xml: string, localName: string): string | undefined 
  * parse. Never resolves entities/DTDs - only the literal text between the open/close tags is ever inspected.
  */
 export function extractEmailAddress(xml: string): string | undefined {
-    const value = extractElementText(xml, "EMailAddress")?.trim();
-    return value ? decodeXmlEntities(value) : undefined;
+    return extractElementText(xml, "EMailAddress")?.trim() || undefined;
 }
 
 /** Escapes the 5 XML-predefined-entity characters for safe inclusion as element text content. */

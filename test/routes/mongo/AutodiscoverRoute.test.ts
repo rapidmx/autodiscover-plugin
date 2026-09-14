@@ -120,7 +120,8 @@ describe("Route:AutodiscoverRouteMongo Tests", () => {
             expect(result.headers["content-type"]).toContain("application/xml");
             const xml = result.text;
             expect(xml).toContain(`<autodiscover:EMailAddress>${mailbox.primarySmtpAddress}</autodiscover:EMailAddress>`);
-            expect(xml).toContain("<autodiscover:DisplayName>Ada Lovelace</autodiscover:DisplayName>");
+            expect(xml).toContain(`<autodiscover:DisplayName>${mailbox.primarySmtpAddress}</autodiscover:DisplayName>`);
+            expect(result.text).not.toContain("Ada Lovelace");
             expect(xml).toContain("<autodiscover:Type>MobileSync</autodiscover:Type>");
             expect(xml).toContain("<autodiscover:Url>https://mail.example.com/Microsoft-Server-ActiveSync</autodiscover:Url>");
         });
@@ -155,6 +156,30 @@ describe("Route:AutodiscoverRouteMongo Tests", () => {
                 .set("Content-Type", "text/xml")
                 .send(poxRequestBody("nobody@example.com"));
             expect(result.status).toBe(404);
+        });
+
+        it("Returns 400, never a directory match, for query-operator or non-plain address values.", async () => {
+            const mailbox = await createMailbox();
+            const alias = `a${uuid.v4()}@example.com`;
+            await createMailbox({ aliasAddresses: [alias] });
+            for (const value of [
+                "like(*)",
+                "regex(^a)",
+                "ne(nobody@example.com)",
+                `in(${mailbox.primarySmtpAddress},${alias})`,
+                "like(*@example.com)",
+                `eq(${mailbox.primarySmtpAddress})`,
+                `${mailbox.primarySmtpAddress},${alias}`,
+                "no-at-sign",
+                `a b@example.com`,
+                `${"a".repeat(250)}@example.com`,
+            ]) {
+                const result = await request(server.getApplication())
+                    .post(`${baseUrl}/autodiscover.xml`)
+                    .set("Content-Type", "text/xml")
+                    .send(poxRequestBody(value));
+                expect(result.status).toBe(400);
+            }
         });
 
         it("Returns 400 when the request body has no EMailAddress element.", async () => {
@@ -197,7 +222,8 @@ describe("Route:AutodiscoverRouteMongo Tests", () => {
             const xml = result.text;
             expect(xml).toContain("http://schemas.microsoft.com/exchange/autodiscover/outlook/responseschema/2006a");
             expect(xml).toContain(`<AutoDiscoverSMTPAddress>${mailbox.primarySmtpAddress}</AutoDiscoverSMTPAddress>`);
-            expect(xml).toContain("<DisplayName>Ada Lovelace</DisplayName>");
+            expect(xml).toContain(`<DisplayName>${mailbox.primarySmtpAddress}</DisplayName>`);
+            expect(xml).not.toContain("Ada Lovelace");
             expect(xml).toContain('<Protocol Type="mapiHttp" Version="1">');
             expect(xml).toContain("<InternalUrl>https://mail.example.com/mapi/emsmdb</InternalUrl>");
             expect(xml).not.toContain("<autodiscover:Type>MobileSync</autodiscover:Type>");
@@ -271,6 +297,17 @@ describe("Route:AutodiscoverRouteMongo Tests", () => {
             );
             expect(result.status).toBe(404);
             expect(result.body.ErrorCode).toBe("UserNotFound");
+        });
+
+        it("Returns 404 JSON, never a directory match, for query-operator or non-plain address values.", async () => {
+            const mailbox = await createMailbox();
+            for (const value of ["like(*)", "regex(^a)", `in(${mailbox.primarySmtpAddress},x@example.com)`, "ne(x@example.com)"]) {
+                const result = await request(server.getApplication()).get(
+                    `${baseUrl}/autodiscover.json/v1.0/${encodeURIComponent(value)}?Protocol=ActiveSync`,
+                );
+                expect(result.status).toBe(404);
+                expect(result.body.ErrorCode).toBe("UserNotFound");
+            }
         });
 
         it("Returns 404 JSON (not 500) for an address containing a literal percent sign.", async () => {

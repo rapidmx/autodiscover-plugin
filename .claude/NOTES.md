@@ -110,3 +110,31 @@ manifest `requires` on ActiveSync and MAPI stays, per JP).
 - Tests: linear-time and edge-case tests in `AutodiscoverXml.test.ts`; URL-validation and 413 unit tests in
   `test/routes/BaseAutodiscoverRoute.test.ts`; pathological-body timing, 413, and `%` address HTTP tests in
   `test/routes/mongo/AutodiscoverRoute.test.ts`.
+
+### 2026-09-14 (2) — Round-2 review fixes (directory enumeration, display-name disclosure, XML scan gaps)
+
+Each finding was confirmed in code first. Not committed; no version, peerDependency or manifest changes
+(`requires` stays, per JP).
+
+- **HIGH: unauthenticated directory enumeration.** `resolveMailbox()` passed the caller's email straight into
+  `find({ primarySmtpAddress })` and the alias query. service-core's query parser reads `like(*)`, `regex(^a)`,
+  `in(a,b)` and `ne(x)` in a value, so POX or v2 could confirm "some mailbox matches". A new private
+  `normalizeAddress()` trims and lower-cases the value. It then requires a single plain address
+  (`/^[^\s@(),"\\]+@[^\s@(),"\\]+$/`) of at most 254 characters (`MAX_ADDRESS_LENGTH`). Anything else gets `400`
+  from POX or `404 UserNotFound` from v2, and no query runs. Lookups now use a literal `eq(<address>)` with
+  `limit: 1` in both the query and the options, mirroring restapi's `BaseMailboxAccessRoute`. The base
+  `aliasQueryValue()` returns `eq(...)`. The SQL override (escaped `LIKE` on the `simple-json` column) is
+  unchanged; `"` and `\` are excluded by the pattern, so they can't break out of its `%"..."%` quoting.
+- **MEDIUM: POX disclosed `Mailbox.displayName` to anonymous callers**, contrary to the class doc. Both POX
+  builders now get the caller's own (normalized) address as `DisplayName`. That keeps the Outlook schema's
+  `DisplayName` populated, and the MobileSync element is still valid. The response `EMailAddress` is now the
+  lower-cased address.
+- **LOW: tag-scan gaps in `AutodiscoverXml.extractElementText`.** It now allows whitespace before a closing
+  tag's `>`, skips `<!-- -->` comments (inside the element, and around it so a commented-out element never
+  matches) and unwraps `<![CDATA[...]]>` verbatim. Entities are decoded per text segment, never inside CDATA.
+  An unterminated comment or CDATA returns `undefined`. It is still one forward scan; every `indexOf` starts
+  past the previous one.
+- Tests: the literal `eq()` query and no-query-for-operators unit test is in `test/routes/BaseAutodiscoverRoute.test.ts`.
+  Operator-value 400/404 HTTP tests and the display-name non-disclosure assertions are in both
+  `test/routes/{mongo,sql}/AutodiscoverRoute.test.ts`. Closing-tag whitespace, comment and CDATA tests are in
+  `AutodiscoverXml.test.ts`.
