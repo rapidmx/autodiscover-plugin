@@ -9,6 +9,7 @@ import fs from "fs";
 import { parsePluginManifest } from "@rapidmx/restapi";
 import * as MongoEntry from "../src/mongo.js";
 import * as SqlEntry from "../src/sql.js";
+import { ACTIVESYNC_PLUGIN, MAPI_PLUGIN } from "../src/BaseAutodiscoverRoute.js";
 
 describe("plugin entry points", () => {
     it.each([
@@ -22,5 +23,10 @@ describe("plugin entry points", () => {
     it("declares a valid plugin manifest", () => {
         const pkg = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"));
         expect(parsePluginManifest(pkg)).toEqual(expect.objectContaining({ displayName: "Autodiscover" }));
+    });
+
+    it("requires the plugins whose endpoints it advertises", () => {
+        const pkg = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"));
+        expect(Object.keys(pkg.rapidmx.plugin.requires).sort()).toEqual([ACTIVESYNC_PLUGIN, MAPI_PLUGIN].sort());
     });
 });

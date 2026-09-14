@@ -99,7 +99,11 @@
                     "type": "string",
                     "help": "The address clients reach this server at, for example https://mail.example.com. Nothing is advertised until this is set."
                 }
-            ]
+            ],
+            "requires": {
+                "@rapidmx/activesync-plugin": "^1.0.0-beta.2",
+                "@rapidmx/mapi-plugin": "^1.0.0-beta.3"
+            }
         }
     }
 }
