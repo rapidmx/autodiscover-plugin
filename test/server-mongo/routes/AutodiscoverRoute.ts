@@ -3,7 +3,4 @@ import { AutodiscoverRouteMongo } from "../../../src/mongo/AutodiscoverRouteMong
 const { Route } = RouteDecorators;
 
 @Route("/mongo/autodiscover")
-export class AutodiscoverRoute extends AutodiscoverRouteMongo {
-    protected readonly easUrl = "https://mail.example.com/Microsoft-Server-ActiveSync";
-    protected readonly mapiUrl = "https://mail.example.com/mapi/emsmdb";
-}
+export class AutodiscoverRoute extends AutodiscoverRouteMongo {}

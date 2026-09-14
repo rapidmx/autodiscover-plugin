@@ -11,8 +11,12 @@ import {
     extractEmailAddress,
     OUTLOOK_RESPONSE_SCHEMA,
 } from "./AutodiscoverXml.js";
-import { Mailbox } from "@rapidmx/restapi";
-const { Init, Logger } = ObjectDecorators;
+import { Mailbox, PluginRegistry } from "@rapidmx/restapi";
+const { Config, Init, Logger } = ObjectDecorators;
+
+/** The plugin packages whose endpoints Autodiscover advertises. */
+export const ACTIVESYNC_PLUGIN = "@rapidmx/activesync";
+export const MAPI_PLUGIN = "@rapidmx/mapi";
 const { Get, Param, Post, Query, Request, Response } = RouteDecorators;
 
 /**
@@ -20,20 +24,8 @@ const { Get, Param, Post, Query, Request, Response } = RouteDecorators;
  * server URL from just an email address - classic POX (`POST /autodiscover/autodiscover.xml`, per
  * `[MS-ASCMD]`'s "MobileSync" response schema) and the modern JSON variant Microsoft calls "Autodiscover v2"
  * (`GET /autodiscover/autodiscover.json/v1.0/<email>?Protocol=ActiveSync`). Like `BaseMailIngestRoute`/
- * `BaseEasRoute`, this class is undecorated - the consuming application mounts it:
- * ```ts
- * import { AutodiscoverRouteMongo } from "@rapidrest/mail/mongo";
- * import { RouteDecorators } from "@rapidrest/service-core";
- * const { Route } = RouteDecorators;
- *
- * @Route("/autodiscover")
- * export class MyAutodiscoverRoute extends AutodiscoverRouteMongo {
- *     protected readonly easUrl = "https://mail.example.com/Microsoft-Server-ActiveSync";
- *     protected readonly mapiUrl = "https://mail.example.com/mapi/emsmdb";
- * }
- * ```
- * which composes with this class's own relative method paths to land exactly on the real spec's conventional
- * paths (`/autodiscover/autodiscover.xml`, `/autodiscover/autodiscover.json/v1.0/:email`).
+ * `BaseEasRoute`, this class is undecorated; its Mongo/SQL concrete classes are mounted at `/autodiscover`, which
+ * composes with this class's own relative method paths to land exactly on the real spec's conventional paths (`/autodiscover/autodiscover.xml`, `/autodiscover/autodiscover.json/v1.0/:email`).
  *
  * **Auth: deliberately none.** Real classic Autodiscover conventionally expects the client to send HTTP Basic
  * credentials (email+password), with the server free to answer `401` and force re-entry - a model this
@@ -54,22 +46,29 @@ const { Get, Param, Post, Query, Request, Response } = RouteDecorators;
  * request actually arrives at one of its two paths.
  *
  * `mailboxClass` is supplied by the Mongo/SQL concrete subclasses following the exact one-line-per-backend
- * pattern used throughout this library. `easUrl`/`mapiUrl` remain abstract even after that - both are
- * deployment-specific values only the consuming application's own subclass can supply.
+ * pattern used throughout this library. The advertised URLs are built from the `mail:autodiscover:public_url`
+ * setting, and each protocol is only advertised while its plugin (`@rapidmx/activesync`, `@rapidmx/mapi`) is
+ * loaded, so a client is never pointed at an endpoint this deployment doesn't serve.
  *
  * @author Jean-Philippe Steinmetz
  */
 export abstract class BaseAutodiscoverRoute<M extends Mailbox> {
     protected abstract mailboxClass: any;
 
-    /** The EAS endpoint URL to report - e.g. `https://mail.example.com/Microsoft-Server-ActiveSync`, matching
-     * whatever `@Route(...)` path the deployment mounted its `BaseEasRoute` subclass at. */
-    protected abstract readonly easUrl: string;
+    /** The public base URL clients reach this deployment at, e.g. `https://mail.example.com`. */
+    @Config("mail:autodiscover:public_url", "")
+    protected publicUrl: string = "";
 
-    /** The MAPI/HTTP `emsmdb` endpoint URL to report to a real Outlook desktop client - e.g.
-     * `https://mail.example.com/mapi/emsmdb`, matching whatever `@Route(...)` path the deployment mounted its
-     * `BaseMapiEmsmdbRoute` subclass at. Only used by `pox()`'s Outlook/EXCH response branch. */
-    protected abstract readonly mapiUrl: string;
+    /** The EAS endpoint URL to report, or `undefined` when ActiveSync isn't available here. */
+    protected get easUrl(): string | undefined {
+        return this.endpointUrl(ACTIVESYNC_PLUGIN, "/Microsoft-Server-ActiveSync");
+    }
+
+    /** The MAPI/HTTP `emsmdb` endpoint URL to report to a real Outlook desktop client, or `undefined` when MAPI
+     * isn't available here. Only used by `pox()`'s Outlook/EXCH response branch. */
+    protected get mapiUrl(): string | undefined {
+        return this.endpointUrl(MAPI_PLUGIN, "/mapi/emsmdb");
+    }
 
     // Automatically injected by ObjectFactory on instantiation
     private _objectFactory?: ObjectFactory;
@@ -89,8 +88,18 @@ export abstract class BaseAutodiscoverRoute<M extends Mailbox> {
         return address;
     }
 
+    private endpointUrl(plugin: string, path: string): string | undefined {
+        if (!this.publicUrl || !PluginRegistry.isActive(plugin)) {
+            return undefined;
+        }
+        return `${this.publicUrl.replace(/\/+$/, "")}${path}`;
+    }
+
     @Init
     public async init(): Promise<void> {
+        if (!this.publicUrl) {
+            this.logger?.warn("Autodiscover has no mail:autodiscover:public_url set, so it can't point clients at any protocol.");
+        }
         this.mailboxRepo = await this._objectFactory!.newInstance(RepoUtils, {
             name: this.mailboxClass.name,
             args: [this.mailboxClass],
@@ -137,18 +146,16 @@ export abstract class BaseAutodiscoverRoute<M extends Mailbox> {
             return;
         }
 
-        const xml: string =
-            extractAcceptableResponseSchema(body) === OUTLOOK_RESPONSE_SCHEMA
-                ? buildOutlookSuccessXml({
-                      emailAddress: email,
-                      displayName: mailbox.displayName,
-                      mapiUrl: this.mapiUrl,
-                  })
-                : buildPoxSuccessXml({
-                      emailAddress: email,
-                      displayName: mailbox.displayName,
-                      easUrl: this.easUrl,
-                  });
+        const outlook: boolean = extractAcceptableResponseSchema(body) === OUTLOOK_RESPONSE_SCHEMA;
+        const url: string | undefined = outlook ? this.mapiUrl : this.easUrl;
+        if (!url) {
+            // The protocol this client asked about isn't served here - a 404 lets it move on to its next discovery step.
+            res.status(404).send();
+            return;
+        }
+        const xml: string = outlook
+            ? buildOutlookSuccessXml({ emailAddress: email, displayName: mailbox.displayName, mapiUrl: url })
+            : buildPoxSuccessXml({ emailAddress: email, displayName: mailbox.displayName, easUrl: url });
         res.setHeader("Content-Type", "application/xml; charset=utf-8").status(200).send(xml);
     }
 
@@ -167,7 +174,9 @@ export abstract class BaseAutodiscoverRoute<M extends Mailbox> {
             res.status(500).send();
             return;
         }
-        if (protocol !== "ActiveSync") {
+        // An unsupported protocol and ActiveSync not being available here get the same answer.
+        const easUrl: string | undefined = this.easUrl;
+        if (protocol !== "ActiveSync" || !easUrl) {
             res.status(400).json({
                 ErrorCode: "ProtocolNotSupported",
                 ErrorMessage: `Unsupported protocol: ${protocol ?? ""}`,
@@ -184,6 +193,6 @@ export abstract class BaseAutodiscoverRoute<M extends Mailbox> {
             return;
         }
 
-        res.status(200).json({ Protocol: "ActiveSync", Url: this.easUrl });
+        res.status(200).json({ Protocol: "ActiveSync", Url: easUrl });
     }
 }

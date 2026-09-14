@@ -4,18 +4,21 @@
 ///////////////////////////////////////////////////////////////////////////////
 import { Raw } from "typeorm";
 import { MailboxSQL } from "@rapidmx/restapi/sql";
+import { RouteDecorators } from "@rapidrest/service-core";
 import { BaseAutodiscoverRoute } from "../BaseAutodiscoverRoute.js";
+const { Route } = RouteDecorators;
 
 /**
- * SQL-backed concrete `BaseAutodiscoverRoute`. See `AutodiscoverRouteMongo.ts`'s doc comment - the same
- * mounting pattern applies here. `aliasQueryValue()` is overridden identically to `MailIngestRouteSQL` - see
+ * SQL-backed concrete `BaseAutodiscoverRoute`, mounted at `/autodiscover` and exported from this plugin's `./sql`
+ * entry point. `aliasQueryValue()` is overridden identically to `MailIngestRouteSQL` - see
  * that class's doc comment for the full vulnerability rationale (unescaped `%`/`_` enabling alias-enumeration
  * and cross-mailbox matches) this same escaping closes here too, since `resolveMailbox()` is reached by
  * unauthenticated callers exactly like `MailIngestRoute.resolve()` is.
  *
  * @author Jean-Philippe Steinmetz
  */
-export abstract class AutodiscoverRouteSQL extends BaseAutodiscoverRoute<MailboxSQL> {
+@Route("/autodiscover")
+export class AutodiscoverRouteSQL extends BaseAutodiscoverRoute<MailboxSQL> {
     protected mailboxClass: any = MailboxSQL;
 
     protected aliasQueryValue(address: string): any {

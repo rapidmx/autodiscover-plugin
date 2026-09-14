@@ -49,6 +49,9 @@ export function buildTestConfigDefaults(datastores: Record<string, any>) {
             authRequired: false,
         },
         mail: {
+            autodiscover: {
+                public_url: "https://mail.example.com/",
+            },
             blob: {
                 local: {
                     root: "./test/.tmp/blobs",

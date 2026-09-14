@@ -22,14 +22,14 @@
         "prepublish": "yarn build"
     },
     "peerDependencies": {
-        "@rapidmx/restapi": "0.1.x",
+        "@rapidmx/restapi": "0.8.x",
         "@rapidrest/core": "5.x",
-        "@rapidrest/service-core": "1.x"
+        "@rapidrest/service-core": "2.x"
     },
     "devDependencies": {
-        "@rapidmx/restapi": "^0.2.0",
+        "@rapidmx/restapi": "patch:@rapidmx/restapi@npm%3A0.8.0#~/.yarn/patches/@rapidmx-restapi-npm-0.8.0-d588a97668.patch",
         "@rapidrest/core": "^5.2.2",
-        "@rapidrest/service-core": "^1.7.2",
+        "@rapidrest/service-core": "^2.0.0",
         "@swc/core": "^1.16.2",
         "@types/nconf": "^0.10.7",
         "@types/node": "^26.5.0",
@@ -86,5 +86,20 @@
     "typings": "dist/types/index.d.ts",
     "files": [
         "dist"
-    ]
+    ],
+    "rapidmx": {
+        "plugin": {
+            "apiVersion": 1,
+            "displayName": "Autodiscover",
+            "description": "Lets mail apps find this server's ActiveSync and MAPI addresses from just an email address (served at /autodiscover). Only advertises protocols whose plugins are installed.",
+            "settings": [
+                {
+                    "key": "mail:autodiscover:public_url",
+                    "label": "Public server URL",
+                    "type": "string",
+                    "help": "The address clients reach this server at, for example https://mail.example.com. Nothing is advertised until this is set."
+                }
+            ]
+        }
+    }
 }

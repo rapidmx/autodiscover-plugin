@@ -14,6 +14,7 @@ import * as uuid from "uuid";
 import { Repository } from "typeorm";
 import { MailboxSQL } from "@rapidmx/restapi/sql";
 import { registerTestDoubles } from "../../testDoubles.js";
+import { PluginRegistry } from "@rapidmx/restapi";
 
 describe("Route:AutodiscoverRouteSQL Tests", () => {
     const logger = Logger();
@@ -59,6 +60,10 @@ describe("Route:AutodiscoverRouteSQL Tests", () => {
     beforeAll(async () => {
         registerTestDoubles(objectFactory);
         await server.start();
+        PluginRegistry.setLoaded([
+            { name: "@rapidmx/activesync", version: "1.0.0" },
+            { name: "@rapidmx/mapi", version: "1.0.0" },
+        ]);
 
         const connMgr: ConnectionManager | undefined = objectFactory.getInstance(ConnectionManager);
         const conn: any = connMgr?.connections.get("sql");
@@ -152,6 +157,40 @@ describe("Route:AutodiscoverRouteSQL Tests", () => {
             expect(xml).toContain(`<AutoDiscoverSMTPAddress>${mailbox.primarySmtpAddress}</AutoDiscoverSMTPAddress>`);
             expect(xml).toContain('<Protocol Type="mapiHttp" Version="1">');
             expect(xml).toContain("<InternalUrl>https://mail.example.com/mapi/emsmdb</InternalUrl>");
+        });
+    });
+
+    describe("protocols whose plugins aren't loaded", () => {
+        afterEach(() => {
+            PluginRegistry.setLoaded([
+                { name: "@rapidmx/activesync", version: "1.0.0" },
+                { name: "@rapidmx/mapi", version: "1.0.0" },
+            ]);
+        });
+
+        it("Returns 404 from POX and 400 from v2 when ActiveSync isn't loaded.", async () => {
+            PluginRegistry.setLoaded([{ name: "@rapidmx/mapi", version: "1.0.0" }]);
+            const mailbox = await createMailbox();
+            const pox = await request(server.getApplication())
+                .post(`${baseUrl}/autodiscover.xml`)
+                .set("Content-Type", "text/xml")
+                .send(poxRequestBody(mailbox.primarySmtpAddress));
+            expect(pox.status).toBe(404);
+            const v2 = await request(server.getApplication()).get(
+                `${baseUrl}/autodiscover.json/v1.0/${encodeURIComponent(mailbox.primarySmtpAddress)}?Protocol=ActiveSync`,
+            );
+            expect(v2.status).toBe(400);
+            expect(v2.body.ErrorCode).toBe("ProtocolNotSupported");
+        });
+
+        it("Returns 404 to an Outlook client when MAPI isn't loaded.", async () => {
+            PluginRegistry.setLoaded([{ name: "@rapidmx/activesync", version: "1.0.0" }]);
+            const mailbox = await createMailbox();
+            const result = await request(server.getApplication())
+                .post(`${baseUrl}/autodiscover.xml`)
+                .set("Content-Type", "text/xml")
+                .send(outlookPoxRequestBody(mailbox.primarySmtpAddress));
+            expect(result.status).toBe(404);
         });
     });
 

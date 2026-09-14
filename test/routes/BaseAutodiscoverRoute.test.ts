@@ -13,12 +13,11 @@
 import config from "../config.js";
 import { ObjectFactory } from "@rapidrest/service-core";
 import { Logger } from "@rapidrest/core";
+import { PluginRegistry } from "@rapidmx/restapi";
 import { BaseAutodiscoverRoute } from "../../src/BaseAutodiscoverRoute.js";
 
 class TestAutodiscoverRoute extends BaseAutodiscoverRoute<any> {
     protected mailboxClass: any = { name: "TestMailbox" };
-    protected readonly easUrl = "https://mail.example.com/Microsoft-Server-ActiveSync";
-    protected readonly mapiUrl = "https://mail.example.com/mapi/emsmdb";
 }
 
 function makeRes(): any {
@@ -62,6 +61,26 @@ describe("BaseAutodiscoverRoute Tests (guard clauses only)", () => {
 
         expect(res.status).toHaveBeenCalledWith(400);
         expect(res.send).toHaveBeenCalledWith();
+    });
+
+    it("advertises nothing and warns at startup without a public URL, and only loaded protocols with one.", async () => {
+        const route: any = objectFactory.newInstance<TestAutodiscoverRoute>(TestAutodiscoverRoute, { initialize: false });
+        route.logger = { warn: vi.fn() };
+        vi.spyOn(objectFactory, "newInstance").mockResolvedValue({} as any);
+        route.publicUrl = "";
+        await route.init();
+        expect(route.logger.warn).toHaveBeenCalledWith(expect.stringMatching(/mail:autodiscover:public_url/));
+        PluginRegistry.setLoaded([{ name: "@rapidmx/activesync", version: "1.0.0" }]);
+        try {
+            expect(route.easUrl).toBeUndefined();
+            route.publicUrl = "https://mail.example.com//";
+            await route.init();
+            expect(route.logger.warn).toHaveBeenCalledTimes(1);
+            expect(route.easUrl).toBe("https://mail.example.com/Microsoft-Server-ActiveSync");
+            expect(route.mapiUrl).toBeUndefined();
+        } finally {
+            PluginRegistry.setLoaded([]);
+        }
     });
 
     it("v2() sends a bare 500 when mailboxRepo is not set.", async () => {
