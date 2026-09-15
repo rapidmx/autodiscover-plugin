@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0-beta.2] - 2026-09-15
+
+### Changed
+- Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+- Require @rapidmx/activesync-plugin ^1.0.0-beta.2 and @rapidmx/mapi-plugin ^1.0.0-beta.3 in the plugin manifest, so they're installed and loaded before Autodiscover
+- Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+- Validate mail:autodiscover:public_url, requiring https (http only for localhost) and no credentials, query or fragment; advertise nothing when it's invalid
+- Stop double-decoding the Autodiscover v2 email path parameter, which returned 500 for addresses containing %
+- Update the README to the @rapidmx/autodiscover-plugin package name
+- Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+- Validate Autodiscover email addresses as a single plain address and look mailboxes up literally with eq(), so anonymous callers can't enumerate mailboxes with like(), regex() or in()
+- Return the requested address as the POX DisplayName instead of the mailbox's display name
+- Accept whitespace before a closing tag's >, skip comments and unwrap CDATA when reading the POX request
+- Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+- Updated @rapidrest/service-core to ^2.1.0 as both the dev dependency and the peer range
+- Use ModelUtils.literal() for mailbox address lookups instead of eq() query strings
+- Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+- Upgarding restapi dep
+
+### Fixed
+- Fixed Autodiscover never advertising ActiveSync or MAPI by checking for the renamed @rapidmx/activesync-plugin and @rapidmx/mapi-plugin packages
+- Fixed a ReDoS in POX Autodiscover: replace the EMailAddress and AcceptableResponseSchema regexes with a linear tag scan, and reject request bodies over 16KB with 413
+- Fixed peer dep range for service-core
+
 ## [1.0.0-beta.1] - 2026-09-14
 
 ### Added
@@ -43,6 +67,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - registered double, that job failed to start on every integration test run.
 - Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
 
-[Unreleased]: https://github.com/RapidMX/autodiscover/compare/v1.0.0-beta.1...HEAD
+[Unreleased]: https://github.com/RapidMX/autodiscover/compare/v1.0.0-beta.2...HEAD
+[1.0.0-beta.2]: https://github.com/RapidMX/autodiscover/compare/v1.0.0-beta.1...v1.0.0-beta.2
 [1.0.0-beta.1]: https://github.com/RapidMX/autodiscover/compare/v1.0.0-beta.0...v1.0.0-beta.1
 [1.0.0-beta.0]: https://github.com/RapidMX/autodiscover/releases/tag/v1.0.0-beta.0
