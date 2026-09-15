@@ -138,3 +138,20 @@ Each finding was confirmed in code first. Not committed; no version, peerDepende
   Operator-value 400/404 HTTP tests and the display-name non-disclosure assertions are in both
   `test/routes/{mongo,sql}/AutodiscoverRoute.test.ts`. Closing-tag whitespace, comment and CDATA tests are in
   `AutodiscoverXml.test.ts`.
+
+### 2026-09-14 (3) — `@rapidrest/service-core` 2.1.0 migration
+
+Not committed; package version unchanged. `@rapidmx/restapi` left at `^0.9.0`.
+
+- **Deps.** service-core devDependency `^2.0.0` -> `^2.1.0`, peerDependency `2.x` -> `^2.1.0`; `yarn install`
+  installed 2.1.0.
+- **Suite before any code change: 70/70 passing** (6 files), 100% coverage. No 2.1.0 breaking change affected this
+  plugin (it only reads `Mailbox`; no creates, updates, truncates, date columns, `$or`, Redis or `@RateLimit`), and no
+  restapi 0.9.0 code path it reaches failed.
+- **Simplification.** `resolveMailbox()`'s `primarySmtpAddress` query and the base `aliasQueryValue()` now use
+  `ModelUtils.literal(address)` instead of a hand-built `eq(${address})` string. Behaviour-identical: the address has
+  already passed `normalizeAddress()` (one `@`, no whitespace/parens/commas/quotes/backslashes), so it could never be
+  `me`, `null` or a number that `eq()` would have substituted or coerced. The SQL `aliasQueryValue()` override (escaped
+  `LIKE` via `Raw`) is unchanged. `test/routes/BaseAutodiscoverRoute.test.ts` now expects `ModelUtils.literal(...)`.
+- Final: `yarn lint` and `npx tsc --noEmit -p .` clean; `yarn vitest run --coverage` 70/70, 100% statements/branches/
+  functions/lines.

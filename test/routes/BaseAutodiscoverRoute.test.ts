@@ -11,7 +11,7 @@
 // behavior (email extraction, mailbox resolution, both success/error response shapes, schema branching) is
 // exercised via real HTTP+DB requests in test/routes/mongo/AutodiscoverRoute.test.ts (and its sql/ counterpart).
 import config from "../config.js";
-import { ObjectFactory } from "@rapidrest/service-core";
+import { ModelUtils, ObjectFactory } from "@rapidrest/service-core";
 import { Logger } from "@rapidrest/core";
 import { PluginRegistry } from "@rapidmx/restapi";
 import { BaseAutodiscoverRoute, MAX_POX_BODY_BYTES } from "../../src/BaseAutodiscoverRoute.js";
@@ -134,7 +134,7 @@ describe("BaseAutodiscoverRoute Tests (guard clauses only)", () => {
         expect(find).not.toHaveBeenCalled();
     });
 
-    it("never queries for a non-plain address, and always queries a plain one as a literal eq() value.", async () => {
+    it("never queries for a non-plain address, and always queries a plain one as a ModelUtils.literal() value.", async () => {
         const route = objectFactory.newInstance<TestAutodiscoverRoute>(TestAutodiscoverRoute, {
             initialize: false,
         });
@@ -154,8 +154,8 @@ describe("BaseAutodiscoverRoute Tests (guard clauses only)", () => {
             expect(find).not.toHaveBeenCalled();
 
             await route.v2("  Ada@Example.com ", "ActiveSync", makeRes());
-            expect(find).toHaveBeenCalledWith({ primarySmtpAddress: "eq(ada@example.com)", limit: 1 }, { ignoreACL: true, limit: 1 });
-            expect(find).toHaveBeenCalledWith({ aliasAddresses: "eq(ada@example.com)", limit: 1 }, { ignoreACL: true, limit: 1 });
+            expect(find).toHaveBeenCalledWith({ primarySmtpAddress: ModelUtils.literal("ada@example.com"), limit: 1 }, { ignoreACL: true, limit: 1 });
+            expect(find).toHaveBeenCalledWith({ aliasAddresses: ModelUtils.literal("ada@example.com"), limit: 1 }, { ignoreACL: true, limit: 1 });
         } finally {
             PluginRegistry.setLoaded([]);
         }

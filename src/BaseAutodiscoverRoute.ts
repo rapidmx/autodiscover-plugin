@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MPL-2.0
 ///////////////////////////////////////////////////////////////////////////////
 import { ObjectDecorators } from "@rapidrest/core";
-import { HttpRequest, HttpResponse, ObjectFactory, RepoUtils, RouteDecorators } from "@rapidrest/service-core";
+import { HttpRequest, HttpResponse, ModelUtils, ObjectFactory, RepoUtils, RouteDecorators } from "@rapidrest/service-core";
 import {
     buildOutlookSuccessXml,
     buildPoxSuccessXml,
@@ -91,10 +91,10 @@ export abstract class BaseAutodiscoverRoute<M extends Mailbox> {
      * Builds the query value used to match `Mailbox.aliasAddresses` against the given address. See
      * `BaseMailIngestRoute.aliasQueryValue()`'s identical doc comment - same Mongo-array vs.
      * SQL-`simple-json`-column backend split, same override point (`AutodiscoverRouteSQL` overrides this
-     * identically to `MailIngestRouteSQL`).
+     * identically to `MailIngestRouteSQL`). The base form is a `ModelUtils.literal()` exact match.
      */
     protected aliasQueryValue(address: string): any {
-        return `eq(${address})`;
+        return ModelUtils.literal(address);
     }
 
     /**
@@ -161,10 +161,10 @@ export abstract class BaseAutodiscoverRoute<M extends Mailbox> {
         return address.length <= MAX_ADDRESS_LENGTH && PLAIN_ADDRESS_PATTERN.test(address) ? address : undefined;
     }
 
-    /** Looks up a mailbox by an already-`normalizeAddress()`ed address, always as a literal `eq(...)` value. */
+    /** Looks up a mailbox by an already-`normalizeAddress()`ed address, always as a `ModelUtils.literal()` value. */
     private async resolveMailbox(address: string): Promise<M | undefined> {
         const [byPrimary, byAlias] = await Promise.all([
-            this.mailboxRepo!.find({ primarySmtpAddress: `eq(${address})`, limit: 1 }, { ignoreACL: true, limit: 1 }),
+            this.mailboxRepo!.find({ primarySmtpAddress: ModelUtils.literal(address), limit: 1 }, { ignoreACL: true, limit: 1 }),
             this.mailboxRepo!.find({ aliasAddresses: this.aliasQueryValue(address), limit: 1 }, { ignoreACL: true, limit: 1 }),
         ]);
         return byPrimary[0] ?? byAlias[0];
