@@ -11,18 +11,15 @@
  * exported from this package's `./mongo`/`./sql` subpaths instead, alongside every other entity/route/job this
  * library defines - see `src/eas/index.ts`'s identical doc comment for the same convention.
  *
- * A deployment mounts Autodiscover with a trivial subclass supplying its own EAS URL:
- * ```ts
- * import { AutodiscoverRouteMongo } from "@rapidrest/mail/mongo";
- * import { RouteDecorators } from "@rapidrest/service-core";
- * const { Route } = RouteDecorators;
- *
- * @Route("/autodiscover")
- * export class MyAutodiscoverRoute extends AutodiscoverRouteMongo {
- *     protected readonly easUrl = "https://mail.example.com/Microsoft-Server-ActiveSync";
- *     protected readonly mapiUrl = "https://mail.example.com/mapi/emsmdb";
- * }
- * ```
+ * A deployment mounts Autodiscover by loading the ready-to-mount `AutodiscoverRouteMongo`/`AutodiscoverRouteSQL`
+ * class from this plugin's `./mongo`/`./sql` entry point directly - no subclass or URLs to supply, since
+ * `BaseAutodiscoverRoute` builds the EAS (`easUrl`) and MAPI (`mapiUrl`) endpoint URLs itself from the
+ * `mail:autodiscover:public_url` config setting (also exposed as this plugin's own "Public server URL"
+ * admin-console setting - see `package.json`'s `rapidmx.plugin.settings`), and only advertises each protocol
+ * while its own plugin (`@rapidmx/activesync-plugin`, `@rapidmx/mapi-plugin`) is loaded. Set
+ * `mail:autodiscover:public_url` to this deployment's externally-reachable `https://` base URL (e.g.
+ * `https://mail.example.com`) for either endpoint to be advertised at all - see `BaseAutodiscoverRoute`'s own
+ * doc comment for the exact validation rules.
  */
 export * from "./AutodiscoverXml.js";
 export * from "./BaseAutodiscoverRoute.js";

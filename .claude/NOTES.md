@@ -155,3 +155,13 @@ Not committed; package version unchanged. `@rapidmx/restapi` left at `^0.9.0`.
   `LIKE` via `Raw`) is unchanged. `test/routes/BaseAutodiscoverRoute.test.ts` now expects `ModelUtils.literal(...)`.
 - Final: `yarn lint` and `npx tsc --noEmit -p .` clean; `yarn vitest run --coverage` 70/70, 100% statements/branches/
   functions/lines.
+
+### 2026-09-22 - Autodiscover never actually worked: the setting's help text didn't say what DNS was still needed, and a stale doc comment
+
+Two small fixes alongside restapi/server/web-client's half of this (see restapi's own NOTES for the full picture - the DNS checklist gaining
+`autodiscover_cname`/`autodiscover_srv`, and server finally getting a default `autodiscover.public_url` config block). Here: expanded this
+plugin's own `mail:autodiscover:public_url` admin-console setting's `help` text to say what DNS is also needed (a CNAME, or a SRV record to
+avoid a second certificate) and point at the Domain DNS setup checklist; added its `"default": ""`. Rewrote `src/index.ts`'s stale doc-comment
+example, which still described an old subclass-override mounting pattern (`protected readonly easUrl = "..."`) `BaseAutodiscoverRoute` hasn't
+used in some time - it builds both endpoint URLs itself from the config setting, so a deployment just loads `AutodiscoverRouteMongo`/
+`AutodiscoverRouteSQL` directly. `yarn test:prod` clean: 70/70 tests, 100/100/100/100.

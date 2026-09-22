@@ -20,3 +20,13 @@
   downstream
 * MongoDB and SQL persistence backends (`@rapidmx/autodiscover/mongo`, `@rapidmx/autodiscover/sql`), matching
   whichever backend the rest of a `@rapidmx/restapi`-based deployment already uses
+
+### Fixes
+
+* The "Public server URL" setting's help text now says what DNS an administrator also needs to add - a
+  `CNAME` (`autodiscover.<domain>` to this host) or, to avoid a second TLS certificate, a `_autodiscover._tcp.<domain>`
+  SRV record - and points at the deployment's Domain DNS setup checklist, which now recommends both
+* Rewrote this package's own `src/index.ts` doc comment, which still described an old subclass-override
+  mounting pattern (`protected readonly easUrl = "..."`) that `BaseAutodiscoverRoute` no longer uses - a
+  deployment now just loads `AutodiscoverRouteMongo`/`AutodiscoverRouteSQL` directly and sets
+  `mail:autodiscover:public_url`
