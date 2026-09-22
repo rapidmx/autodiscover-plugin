@@ -1,6 +1,6 @@
 {
     "name": "@rapidmx/autodiscover-plugin",
-    "version": "1.0.0-beta.2",
+    "version": "1.0.0",
     "description": "A RapidMX plugin that provides Autodiscover protocol support.",
     "repository": "https://github.com/RapidMX/autodiscover.git",
     "author": "RapidREST <rapidrests@gmail.com>",

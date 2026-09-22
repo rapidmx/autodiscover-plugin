@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-09-22
+
+### Changed
+- Expand the public server URL setting's help text to say what DNS is also needed, a CNAME or a SRV record that avoids a second certificate, pointing at the Domain DNS setup checklist that now recommends both
+- Document the fix in the release notes and NOTES
+- Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+
+### Fixed
+- Fixed a stale doc comment describing a subclass-override mounting pattern this plugin no longer uses
+
 ## [1.0.0-beta.2] - 2026-09-15
 
 ### Changed
@@ -67,7 +77,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - registered double, that job failed to start on every integration test run.
 - Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
 
-[Unreleased]: https://github.com/RapidMX/autodiscover/compare/v1.0.0-beta.2...HEAD
+[Unreleased]: https://github.com/RapidMX/autodiscover/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/RapidMX/autodiscover/compare/v1.0.0-beta.2...v1.0.0
 [1.0.0-beta.2]: https://github.com/RapidMX/autodiscover/compare/v1.0.0-beta.1...v1.0.0-beta.2
 [1.0.0-beta.1]: https://github.com/RapidMX/autodiscover/compare/v1.0.0-beta.0...v1.0.0-beta.1
 [1.0.0-beta.0]: https://github.com/RapidMX/autodiscover/releases/tag/v1.0.0-beta.0
