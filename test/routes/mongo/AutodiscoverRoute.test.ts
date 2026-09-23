@@ -8,7 +8,7 @@
 // endpoints are deliberately unauthenticated).
 import config from "../../config.js";
 import { request } from "@rapidrest/service-core/test";
-import { MongoConnection, MongoRepository, Server, ObjectFactory, ConnectionManager } from "@rapidrest/service-core";
+import { MongoConnection, MongoRepository, Server, ObjectFactory, ConnectionManager, RateLimiter } from "@rapidrest/service-core";
 import { Logger } from "@rapidrest/core";
 import * as uuid from "uuid";
 import { MailboxMongo } from "@rapidmx/restapi/mongo";
@@ -228,6 +228,30 @@ describe("Route:AutodiscoverRouteMongo Tests", () => {
             expect(xml).toContain("<InternalUrl>https://mail.example.com/mapi/emsmdb</InternalUrl>");
             expect(xml).not.toContain("<autodiscover:Type>MobileSync</autodiscover:Type>");
         });
+
+        it("Rate limits repeated anonymous POX lookups (429) - this endpoint is an unauthenticated mailbox-existence oracle.", async () => {
+            const rateLimiter: any = objectFactory.getInstance(RateLimiter);
+            const original = rateLimiter.config;
+            // `@RateLimit()` scopes anonymous callers by client IP, so every prior request in this file (all
+            // from supertest's own loopback address) already shares this counter - reset it so the assertions
+            // below start from a known, empty count rather than whatever the earlier tests left behind.
+            rateLimiter.memoryStore.clear();
+            rateLimiter.config = { enabled: true, maxAttempts: 2, windowSeconds: 300, ip: { enabled: false } };
+            try {
+                const mailbox = await createMailbox();
+                const send = () =>
+                    request(server.getApplication())
+                        .post(`${baseUrl}/autodiscover.xml`)
+                        .set("Content-Type", "text/xml")
+                        .send(poxRequestBody(mailbox.primarySmtpAddress));
+
+                expect((await send()).status).toBe(200);
+                expect((await send()).status).toBe(200);
+                expect((await send()).status).toBe(429);
+            } finally {
+                rateLimiter.config = original;
+            }
+        });
     });
 
     describe("protocols whose plugins aren't loaded", () => {
@@ -333,6 +357,28 @@ describe("Route:AutodiscoverRouteMongo Tests", () => {
                 `${baseUrl}/autodiscover.json/v1.0/${encodeURIComponent(mailbox.primarySmtpAddress)}`,
             );
             expect(result.status).toBe(400);
+        });
+
+        it("Rate limits repeated anonymous v2 lookups (429) - this endpoint is an unauthenticated mailbox-existence oracle.", async () => {
+            const rateLimiter: any = objectFactory.getInstance(RateLimiter);
+            const original = rateLimiter.config;
+            // See the identical comment in the POX rate-limit test above - resets the counter every prior
+            // request in this file (all from the same loopback address) already shares.
+            rateLimiter.memoryStore.clear();
+            rateLimiter.config = { enabled: true, maxAttempts: 2, windowSeconds: 300, ip: { enabled: false } };
+            try {
+                const mailbox = await createMailbox();
+                const send = () =>
+                    request(server.getApplication()).get(
+                        `${baseUrl}/autodiscover.json/v1.0/${encodeURIComponent(mailbox.primarySmtpAddress)}?Protocol=ActiveSync`,
+                    );
+
+                expect((await send()).status).toBe(200);
+                expect((await send()).status).toBe(200);
+                expect((await send()).status).toBe(429);
+            } finally {
+                rateLimiter.config = original;
+            }
         });
     });
 });

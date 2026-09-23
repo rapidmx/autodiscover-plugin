@@ -17,7 +17,7 @@ const { Config, Init, Logger } = ObjectDecorators;
 /** The plugin packages whose endpoints Autodiscover advertises. */
 export const ACTIVESYNC_PLUGIN = "@rapidmx/activesync-plugin";
 export const MAPI_PLUGIN = "@rapidmx/mapi-plugin";
-const { Get, Param, Post, Query, Request, Response } = RouteDecorators;
+const { Get, Param, Post, Query, RateLimit, Request, Response } = RouteDecorators;
 
 /** The largest POX request body (in bytes) `pox()` will scan; anything bigger gets a `413`. */
 export const MAX_POX_BODY_BYTES = 16 * 1024;
@@ -45,6 +45,12 @@ const PLAIN_ADDRESS_PATTERN = /^[^\s@(),"\\]+@[^\s@(),"\\]+$/;
  * config-supplied EAS server URL - not a per-mailbox secret - once the request email is confirmed to belong to
  * a real `Mailbox` in this deployment. The actual security boundary is unchanged from Phase 2: real mailbox
  * access still requires a JWT at `BaseEasRoute`, exactly as today.
+ *
+ * **Rate limiting.** Both endpoints answer anonymously with an observably different outcome (404 vs. a success
+ * response) depending on whether the requested address belongs to a real `Mailbox`, which makes each one a
+ * mailbox-existence oracle for anyone who can reach them. Both are `@RateLimit()`-decorated - the same bare,
+ * IP-scoped usage `BaseKeyDiscoveryRoute`'s own public key lookup uses - so a caller can't enumerate real
+ * mailboxes at a domain just by hammering either endpoint.
  *
  * **Known gap, deliberately out of scope**: `Action.Redirect` (for multi-tenant hosted providers whose mailbox
  * moved to a different domain) is not implemented - this library serves exactly one EAS URL for its whole
@@ -181,6 +187,7 @@ export abstract class BaseAutodiscoverRoute<M extends Mailbox> {
      * this deployment's MAPI/HTTP endpoint (`buildOutlookSuccessXml`); any other value (or a mobile/EAS-only
      * client that omits the field entirely) gets the original MobileSync/EAS response (`buildPoxSuccessXml`).
      */
+    @RateLimit()
     @Post("/autodiscover.xml")
     public async pox(@Request req: HttpRequest, @Response res: HttpResponse): Promise<void> {
         if (!this.mailboxRepo) {
@@ -228,6 +235,7 @@ export abstract class BaseAutodiscoverRoute<M extends Mailbox> {
      * protocol surface to advertise - so any other `Protocol` value is rejected outright rather than silently
      * answered with an EAS URL under the wrong protocol name.
      */
+    @RateLimit()
     @Get("/autodiscover.json/v1.0/:email")
     public async v2(
         @Param("email") email: string,

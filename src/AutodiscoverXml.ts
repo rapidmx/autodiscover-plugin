@@ -27,6 +27,30 @@ function isElement(name: string, localName: string): boolean {
     return name === localName || name.endsWith(`:${localName}`);
 }
 
+/**
+ * Returns the index of the `>` that closes a start/self-closing tag beginning at `start` (just past the tag
+ * name), or `-1` if it's never closed. XML permits an unescaped literal `>` inside a quoted (`'`/`"`) attribute
+ * value (e.g. `xmlns:x="a>b"`), so a plain `indexOf(">", start)` would stop early on that inner `>` and return
+ * a corrupted tag boundary; this tracks quote state and only reports a `>` seen outside any quote. Still one
+ * forward, linear-time scan - no character is inspected more than once.
+ */
+function findTagClose(xml: string, start: number): number {
+    let quote: string | undefined;
+    for (let i = start; i < xml.length; i++) {
+        const ch = xml[i];
+        if (quote) {
+            if (ch === quote) {
+                quote = undefined;
+            }
+        } else if (ch === '"' || ch === "'") {
+            quote = ch;
+        } else if (ch === ">") {
+            return i;
+        }
+    }
+    return -1;
+}
+
 const COMMENT_OPEN = "<!--";
 const COMMENT_CLOSE = "-->";
 const CDATA_OPEN = "<![CDATA[";
@@ -62,6 +86,8 @@ function skipWhitespace(xml: string, start: number): number {
  * Returns the text content of the first `<localName>text</localName>` element (namespace prefix and attributes
  * allowed, case-insensitive, whitespace allowed before the closing tag's `>`) whose content is plain text:
  * entities are decoded, `<![CDATA[...]]>` sections are unwrapped verbatim and `<!-- -->` comments are dropped.
+ * An attribute value on the matched opening tag may itself contain a literal `>` (`findTagClose()` tracks
+ * quote state so that doesn't end the tag early).
  * Comments/CDATA outside such an element are skipped whole, so a commented-out element never matches. A single
  * forward, linear-time scan - deliberately NOT a regex: this runs on an unauthenticated request body, and the
  * previous `\s*([^<]*?)\s*<\/...>` pattern backtracked cubically on an unterminated element padded with
@@ -85,7 +111,7 @@ function extractElementText(xml: string, localName: string): string | undefined 
         if (!isElement(open.name, target)) {
             continue;
         }
-        const gt = xml.indexOf(">", pos);
+        const gt = findTagClose(xml, pos);
         if (gt === -1) {
             return undefined;
         }

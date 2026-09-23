@@ -1,5 +1,16 @@
 # Release Notes
 
+## Unreleased
+
+### Fixes
+
+* Rate limit the anonymous POX (`autodiscover.xml`) and Autodiscover v2 (`autodiscover.json/v1.0/:email`)
+  endpoints, both of which reveal via their HTTP status whether an email address belongs to a real mailbox -
+  without this, either endpoint could be hammered to enumerate real mailboxes at a domain
+* Fixed the POX request XML tag scanner mis-extracting an element's text when a sibling attribute value on its
+  opening tag contains a literal `>` (e.g. `xmlns:x="a>b"`); it now tracks quote state so that inner `>` no
+  longer ends the tag early
+
 ## v1.0.0
 
 ### Features

@@ -67,6 +67,19 @@ describe("AutodiscoverXml Tests", () => {
             expect(extractEmailAddress(`<EMailAddress>a@example.com</EMailAddress x>`)).toBeUndefined();
         });
 
+        it("Doesn't stop at a literal '>' inside a quoted attribute value on the opening tag.", () => {
+            expect(extractEmailAddress(`<EMailAddress xmlns:x="a>b">victim@example.com</EMailAddress>`)).toBe(
+                "victim@example.com",
+            );
+            expect(extractEmailAddress(`<EMailAddress xmlns:x='a>b'>victim@example.com</EMailAddress>`)).toBe(
+                "victim@example.com",
+            );
+            // A self-closing tag with the same hazard still correctly finds no text content.
+            expect(extractEmailAddress(`<EMailAddress xmlns:x="a>b"/><EMailAddress>real@example.com</EMailAddress>`)).toBe(
+                "real@example.com",
+            );
+        });
+
         it("Skips comments, both inside the element and around it.", () => {
             expect(extractEmailAddress(`<EMailAddress>a<!-- note -->@example.com<!----></EMailAddress>`)).toBe("a@example.com");
             expect(

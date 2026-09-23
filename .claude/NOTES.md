@@ -165,3 +165,42 @@ avoid a second certificate) and point at the Domain DNS setup checklist; added i
 example, which still described an old subclass-override mounting pattern (`protected readonly easUrl = "..."`) `BaseAutodiscoverRoute` hasn't
 used in some time - it builds both endpoint URLs itself from the config setting, so a deployment just loads `AutodiscoverRouteMongo`/
 `AutodiscoverRouteSQL` directly. `yarn test:prod` clean: 70/70 tests, 100/100/100/100.
+
+### 2026-09-22 (2) - Round-3 review fixes (rate limiting, XML tag-scan quote handling)
+
+Each finding was confirmed in code first. Not committed as a version bump - see the commit itself for what
+landed; `RELEASE_NOTES.md` gained an `Unreleased` section per the usual convention.
+
+- **HIGH: unauthenticated mailbox-existence oracle, no rate limiting.** Both `pox()` and `v2()` answer
+  anonymously with an observably different outcome (404/`UserNotFound` vs. success) depending on whether the
+  requested address matches a real `Mailbox`, and nothing throttled repeated calls. Both are now
+  `@RateLimit()`-decorated (`@rapidrest/service-core`'s `RouteDecorators`), the same bare usage
+  `BaseKeyDiscoveryRoute`'s own public key lookup uses in restapi. `@RateLimit()` with no options defaults
+  `perUser: true`; for an anonymous caller that scopes the identifier-keyed counter to the client's source IP
+  (`ip:<address>|<method>|<path>`), and the framework's own always-on secondary per-IP layer applies on top of
+  that whenever `req` is available - so this is IP-scoped in two independent ways, not merely the class-level
+  `<method>|<path>` default some other undecorated-option routes rely on.
+  - **Test gotcha worth remembering:** since neither route has a path parameter (unlike `BaseKeyDiscoveryRoute`'s
+    `/:hash`, where each test's distinct hash value naturally lands in its own counter bucket), every request
+    to `pox()` across an entire test file shares one identifier bucket (supertest always calls from the same
+    loopback address). A rate-limit test that just lowers `RateLimiter.config.maxAttempts` without resetting
+    state will immediately 429 on its very first request, because earlier tests in the same file already
+    consumed most of the default budget. Fixed by calling `rateLimiter.memoryStore.clear()` (this `RateLimiter`
+    instance's own dedicated in-memory counter store - confirmed by inspecting its keys mid-test, only
+    `ratelimit:*` entries for this plugin's two routes were ever present, nothing else) immediately before
+    installing the temporary low-`maxAttempts` config, in each of the 4 new rate-limit tests
+    (`test/routes/{mongo,sql}/AutodiscoverRoute.test.ts`, one per protocol per backend).
+- **LOW: XML tag scanner mis-extracted element text when a sibling attribute value contained a literal `>`.**
+  `AutodiscoverXml.ts`'s `extractElementText()` found the opening tag's closing `>` via a plain
+  `xml.indexOf(">", pos)`, which stops early on an unescaped `>` inside a quoted attribute value (e.g.
+  `<EMailAddress xmlns:x="a>b">real@example.com</EMailAddress>`) - previously failed closed (the corrupted
+  string contains a `"`, which `BaseAutodiscoverRoute`'s `PLAIN_ADDRESS_PATTERN` rejects, producing a 400), not
+  exploitable, but a genuine parsing bug. Fixed by a new `findTagClose()` helper that tracks single-/
+  double-quote state and only reports a `>` seen outside any quote; still one forward, linear-time scan (same
+  ReDoS-safety property as the rest of this module - verified against the existing pathological-input timing
+  test, which still passes unchanged).
+- Tests: quoted-`>`-in-attribute regression cases (double-quoted, single-quoted, and a self-closing variant) in
+  `test/AutodiscoverXml.test.ts`; 429-after-N-anonymous-calls tests for both `pox()` and `v2()` in both
+  `test/routes/mongo/AutodiscoverRoute.test.ts` and `test/routes/sql/AutodiscoverRoute.test.ts`.
+- Final: `yarn lint`, `npx tsc --noEmit -p .`, and `yarn vitest run --coverage` all clean - 75/75 tests,
+  100/100/100/100.
