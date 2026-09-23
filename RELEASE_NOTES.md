@@ -10,6 +10,12 @@
 * Fixed the POX request XML tag scanner mis-extracting an element's text when a sibling attribute value on its
   opening tag contains a literal `>` (e.g. `xmlns:x="a>b"`); it now tracks quote state so that inner `>` no
   longer ends the tag early
+* Closed a gap in the Autodiscover v2 endpoint's rate limiting where the limit was keyed per queried email
+  address (taken from the URL), so an anonymous caller could enumerate any number of candidate addresses from
+  one source with no endpoint-specific throttling; it's now a fixed, shared per-endpoint budget regardless of
+  which or how many addresses are queried
+* Changed the POX success response's `Content-Type` from `application/xml` to `text/xml`, matching real
+  Exchange Autodiscover responses - some older/strict mobile mail clients hard-check the exact MIME type
 
 ## v1.0.0
 

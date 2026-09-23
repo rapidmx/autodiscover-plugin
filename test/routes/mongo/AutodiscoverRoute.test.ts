@@ -117,7 +117,7 @@ describe("Route:AutodiscoverRouteMongo Tests", () => {
                 .send(poxRequestBody(mailbox.primarySmtpAddress));
 
             expect(result.status).toBe(200);
-            expect(result.headers["content-type"]).toContain("application/xml");
+            expect(result.headers["content-type"]).toContain("text/xml");
             const xml = result.text;
             expect(xml).toContain(`<autodiscover:EMailAddress>${mailbox.primarySmtpAddress}</autodiscover:EMailAddress>`);
             expect(xml).toContain(`<autodiscover:DisplayName>${mailbox.primarySmtpAddress}</autodiscover:DisplayName>`);
@@ -218,7 +218,7 @@ describe("Route:AutodiscoverRouteMongo Tests", () => {
                 .send(outlookPoxRequestBody(mailbox.primarySmtpAddress));
 
             expect(result.status).toBe(200);
-            expect(result.headers["content-type"]).toContain("application/xml");
+            expect(result.headers["content-type"]).toContain("text/xml");
             const xml = result.text;
             expect(xml).toContain("http://schemas.microsoft.com/exchange/autodiscover/outlook/responseschema/2006a");
             expect(xml).toContain(`<AutoDiscoverSMTPAddress>${mailbox.primarySmtpAddress}</AutoDiscoverSMTPAddress>`);
@@ -248,6 +248,30 @@ describe("Route:AutodiscoverRouteMongo Tests", () => {
                 expect((await send()).status).toBe(200);
                 expect((await send()).status).toBe(200);
                 expect((await send()).status).toBe(429);
+            } finally {
+                rateLimiter.config = original;
+            }
+        });
+
+        it("Shares one rate-limit bucket across different queried addresses (429) - the address is in the POST body, never the URL, so it can never fragment the bucket.", async () => {
+            const rateLimiter: any = objectFactory.getInstance(RateLimiter);
+            const original = rateLimiter.config;
+            rateLimiter.memoryStore.clear();
+            rateLimiter.config = { enabled: true, maxAttempts: 2, windowSeconds: 300, ip: { enabled: false } };
+            try {
+                const mailboxA = await createMailbox();
+                const mailboxB = await createMailbox();
+                const lookup = (address: string) =>
+                    request(server.getApplication())
+                        .post(`${baseUrl}/autodiscover.xml`)
+                        .set("Content-Type", "text/xml")
+                        .send(poxRequestBody(address));
+
+                expect((await lookup(mailboxA.primarySmtpAddress)).status).toBe(200);
+                expect((await lookup(mailboxB.primarySmtpAddress)).status).toBe(200);
+                // A third request, for yet another, still-unqueried address, is still throttled: the two
+                // addresses above already exhausted the one shared budget.
+                expect((await lookup("someone-else@example.com")).status).toBe(429);
             } finally {
                 rateLimiter.config = original;
             }
@@ -376,6 +400,31 @@ describe("Route:AutodiscoverRouteMongo Tests", () => {
                 expect((await send()).status).toBe(200);
                 expect((await send()).status).toBe(200);
                 expect((await send()).status).toBe(429);
+            } finally {
+                rateLimiter.config = original;
+            }
+        });
+
+        it("Shares one rate-limit bucket across different queried addresses (429) - v2()'s fixed @RateLimit id keeps the bucket keyed per endpoint, not per :email URL parameter.", async () => {
+            const rateLimiter: any = objectFactory.getInstance(RateLimiter);
+            const original = rateLimiter.config;
+            rateLimiter.memoryStore.clear();
+            rateLimiter.config = { enabled: true, maxAttempts: 2, windowSeconds: 300, ip: { enabled: false } };
+            try {
+                const mailboxA = await createMailbox();
+                const mailboxB = await createMailbox();
+                const lookup = (address: string) =>
+                    request(server.getApplication()).get(
+                        `${baseUrl}/autodiscover.json/v1.0/${encodeURIComponent(address)}?Protocol=ActiveSync`,
+                    );
+
+                expect((await lookup(mailboxA.primarySmtpAddress)).status).toBe(200);
+                expect((await lookup(mailboxB.primarySmtpAddress)).status).toBe(200);
+                // A third request, for yet another, still-unqueried address, is still throttled: without the
+                // fixed `id`, RouteUtils.getRateLimitPath() would substitute this new address into the
+                // identifier and hand it a fresh, never-exceeded bucket of its own - exactly the gap this test
+                // guards against.
+                expect((await lookup("someone-else@example.com")).status).toBe(429);
             } finally {
                 rateLimiter.config = original;
             }

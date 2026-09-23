@@ -29,6 +29,12 @@ export const MAX_ADDRESS_LENGTH = 254;
 const PLAIN_ADDRESS_PATTERN = /^[^\s@(),"\\]+@[^\s@(),"\\]+$/;
 
 /**
+ * A fixed `@RateLimit({ id: ... })` identifier for `v2()` - see the "Rate limiting" section of this class's own
+ * doc comment for why `v2()` (and only `v2()`) needs one.
+ */
+const V2_LOOKUP_RATE_LIMIT_ID = "autodiscover:v2-lookup";
+
+/**
  * Abstract base for the two Autodiscover endpoints a real mail client uses to find this deployment's EAS
  * server URL from just an email address - classic POX (`POST /autodiscover/autodiscover.xml`, per
  * `[MS-ASCMD]`'s "MobileSync" response schema) and the modern JSON variant Microsoft calls "Autodiscover v2"
@@ -48,9 +54,19 @@ const PLAIN_ADDRESS_PATTERN = /^[^\s@(),"\\]+@[^\s@(),"\\]+$/;
  *
  * **Rate limiting.** Both endpoints answer anonymously with an observably different outcome (404 vs. a success
  * response) depending on whether the requested address belongs to a real `Mailbox`, which makes each one a
- * mailbox-existence oracle for anyone who can reach them. Both are `@RateLimit()`-decorated - the same bare,
- * IP-scoped usage `BaseKeyDiscoveryRoute`'s own public key lookup uses - so a caller can't enumerate real
- * mailboxes at a domain just by hammering either endpoint.
+ * mailbox-existence oracle for anyone who can reach them. Both are `@RateLimit()`-decorated - the same bare
+ * usage `BaseKeyDiscoveryRoute`'s own public key lookup uses - so a caller can't enumerate real mailboxes at a
+ * domain just by hammering either endpoint. `pox()` uses that bare form unmodified: its address is read from
+ * the POST body, never the URL, so `RouteUtils.getRateLimitPath()`'s route-pattern-with-`:param`-substituted
+ * identifier is already the same value (IP + method + static path) no matter which address is queried. `v2()`
+ * can't rely on the same default: its address is the `:email` URL parameter, which `getRateLimitPath()`
+ * substitutes into the auto-derived identifier verbatim - meaning, left undecorated-further, every distinct
+ * queried address would land in its own always-fresh, never-exceeded bucket, and an anonymous caller could
+ * enumerate any number of candidate addresses from one IP with no throttling beyond the coarse, generic,
+ * shared-across-every-route per-IP layer (`RateLimiter`'s own always-on secondary counter). `v2()` therefore
+ * passes a fixed `id` (`V2_LOOKUP_RATE_LIMIT_ID`) so its identifier-layer bucket is one shared, per-endpoint
+ * budget instead of one per queried address - the same budget is now spent regardless of which (or how many
+ * different) addresses a caller tries.
  *
  * **Known gap, deliberately out of scope**: `Action.Redirect` (for multi-tenant hosted providers whose mailbox
  * moved to a different domain) is not implemented - this library serves exactly one EAS URL for its whole
@@ -227,7 +243,10 @@ export abstract class BaseAutodiscoverRoute<M extends Mailbox> {
         const xml: string = outlook
             ? buildOutlookSuccessXml({ emailAddress: email, displayName: email, mapiUrl: url })
             : buildPoxSuccessXml({ emailAddress: email, displayName: email, easUrl: url });
-        res.setHeader("Content-Type", "application/xml; charset=utf-8").status(200).send(xml);
+        // `text/xml`, not `application/xml`: real Exchange POX Autodiscover responses (per Microsoft's own
+        // "Autodiscover for Exchange ActiveSync developers" example) use `text/xml`, and some older/strict
+        // mobile mail clients hard-check the exact MIME type rather than accepting any XML content type.
+        res.setHeader("Content-Type", "text/xml; charset=utf-8").status(200).send(xml);
     }
 
     /**
@@ -235,7 +254,7 @@ export abstract class BaseAutodiscoverRoute<M extends Mailbox> {
      * protocol surface to advertise - so any other `Protocol` value is rejected outright rather than silently
      * answered with an EAS URL under the wrong protocol name.
      */
-    @RateLimit()
+    @RateLimit({ id: V2_LOOKUP_RATE_LIMIT_ID })
     @Get("/autodiscover.json/v1.0/:email")
     public async v2(
         @Param("email") email: string,

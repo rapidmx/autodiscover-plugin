@@ -204,3 +204,57 @@ landed; `RELEASE_NOTES.md` gained an `Unreleased` section per the usual conventi
   `test/routes/mongo/AutodiscoverRoute.test.ts` and `test/routes/sql/AutodiscoverRoute.test.ts`.
 - Final: `yarn lint`, `npx tsc --noEmit -p .`, and `yarn vitest run --coverage` all clean - 75/75 tests,
   100/100/100/100.
+
+### 2026-09-22 (3) - Follow-up: v2()'s rate-limit fix had a real gap, plus two LOW compat items
+
+A second-round review of the (3) session's rate-limit commit found the `v2()` half of that fix didn't actually
+close the enumeration gap it claimed to. Confirmed in code, fixed, tested.
+
+- **MEDIUM: `v2()`'s `@RateLimit()` was keyed per queried email address, not per endpoint.**
+  `RouteUtils.checkRateLimiter()` (`@rapidrest/service-core`) builds the identifier-layer's key from
+  `RouteUtils.getRateLimitPath()`, which substitutes actual `req.params` values into `:param` segments of the
+  matched route pattern. For `v2()`'s `@Get("/autodiscover.json/v1.0/:email")`, that means the bucket key
+  embeds the *specific address being queried* (`ip:<addr>|get|/…/v1.0/<email>`) - so an anonymous caller
+  enumerating N different candidate addresses from one IP got a fresh, never-exceeded identifier-layer bucket
+  on every single request; only the coarse, generic, always-on secondary per-IP layer (shared across every
+  `@RateLimit()`-decorated route in the whole app, default ~100 req/300s if untuned by the deployment) ever
+  throttled it - roomy enough for real enumeration (~28,800/day). `pox()` does **not** have this problem: its
+  address is read from the POST body, never the URL, so its auto-derived identifier is already stable per
+  IP+route no matter which address is queried (verified by adding an equivalent
+  "shares one bucket across different addresses" test for `pox()` too - it already passed pre-fix, confirming
+  no regression risk there).
+  - **Fix**: `v2()` now passes a fixed `id` to the decorator - `@RateLimit({ id: V2_LOOKUP_RATE_LIMIT_ID })`
+    (`BaseAutodiscoverRoute.ts`, `V2_LOOKUP_RATE_LIMIT_ID = "autodiscover:v2-lookup"`). Important nuance worth
+    remembering: per `checkRateLimiter()`'s source, supplying an explicit `id` **bypasses per-IP scoping for
+    the identifier layer entirely** (the `perUser`/client-IP branch only runs when `options.id === undefined`)
+    - so this is not "per-IP-and-route" in the literal sense, it's one **global, shared-across-all-callers**
+    budget for this endpoint specifically. Real per-source-IP throttling for `v2()` still comes from the
+    framework's own always-on secondary per-IP layer (untouched, still independent of `id`/`perUser`). The
+    combined effect is what actually matters: a single global per-endpoint spend cap now exists that no amount
+    of address (or IP) rotation can route around, on top of the existing per-IP cap - which is exactly what
+    closes "attacker enumerates many addresses from one IP with an ever-fresh budget."
+  - **Test that would have caught this or the equivalent regression**: query two *different* addresses in a
+    row (after `rateLimiter.memoryStore.clear()` to start from a known state, same trick as the prior session's
+    tests) and assert a third, still-different address is already 429'd - proving the budget is shared across
+    addresses, not fragmented per-address. Verified this test actually fails (404 instead of 429) against the
+    pre-fix bare `@RateLimit()` by reverting the decorator locally, re-running just that test, and confirming
+    the failure, before restoring the fix. Added to both `test/routes/mongo/AutodiscoverRoute.test.ts` and
+    `test/routes/sql/AutodiscoverRoute.test.ts`, alongside an equivalent (currently redundant, but a useful
+    regression guard) test for `pox()`.
+- **LOW (compat, not security): POX response `Content-Type` changed from `application/xml` to `text/xml`**
+  (`BaseAutodiscoverRoute.ts`, the single `res.setHeader(...)` line both the MobileSync and Outlook/EXCH
+  branches share) - matches real Exchange Autodiscover responses per Microsoft's own "Autodiscover for
+  Exchange ActiveSync developers" example; some older/strict mobile clients hard-check the exact MIME type.
+  Updated the two response-header assertions in `test/routes/mongo/AutodiscoverRoute.test.ts` accordingly (the
+  SQL test file never asserted on this header).
+- **LOW (compat, not security), deferred - not fixed this pass**: `escapeXml()` (`AutodiscoverXml.ts`) doesn't
+  strip/reject XML-illegal C0 control characters (e.g. `\x01`). `PLAIN_ADDRESS_PATTERN`
+  (`BaseAutodiscoverRoute.ts`) excludes whitespace/`@()," \\` but *not* raw control characters generally (JS
+  `\s` doesn't match e.g. `\x01`), so a request address containing one would pass validation; it would only
+  reach `escapeXml()` unescaped if some `Mailbox.primarySmtpAddress`/`aliasAddresses` value in the datastore
+  also literally contains that control character (i.e. it got there through some other, unvalidated path - not
+  through this endpoint's own input handling), producing not-well-formed XML a strict parser would reject.
+  Low likelihood, low severity (not an injection/security issue, just malformed output) - flagged here as a
+  known follow-up rather than fixed, per the reviewing session's own guidance.
+- Final: `yarn lint`, `npx tsc --noEmit -p .`, and `yarn vitest run --coverage` all clean - 79/79 tests,
+  100/100/100/100.
