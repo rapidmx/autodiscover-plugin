@@ -74,6 +74,7 @@ const { Route } = RouteDecorators;
 export class MyAutodiscoverRoute extends AutodiscoverRouteMongo {
     protected readonly easUrl = "https://mail.example.com/Microsoft-Server-ActiveSync";
     protected readonly mapiUrl = "https://mail.example.com/mapi/emsmdb";
+    protected readonly nspiUrl = "https://mail.example.com/mapi/nspi";
 }
 ```
 

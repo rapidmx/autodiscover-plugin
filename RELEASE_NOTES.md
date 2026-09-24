@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Fixed
+
+* Advertise the MAPI/HTTP address book (`/mapi/nspi`) in the Outlook Autodiscover response, beside the mail store. The
+  `mapiHttp` `Protocol` carried only a `MailStore`, and Outlook desktop stopped right after the response with "Something went
+  wrong and Outlook couldn't set up your account" - it made no request to either MAPI endpoint. The address book URL is
+  reported exactly when the MAPI plugin is active, like the mail store's; a subclass that overrides `mapiUrl` should override
+  `nspiUrl` too. Not verified against a real Outlook client.
+
 ### Changed
 
 * The "Public server URL" setting defaults to `https://<host>`, which the server saves with its own host when the plugin is installed, so Autodiscover answers with no further steps. Needs `@rapidmx/restapi` with `<host>` defaults; an older server saves nothing for it, as before, and the admin console's form offers the address to save.

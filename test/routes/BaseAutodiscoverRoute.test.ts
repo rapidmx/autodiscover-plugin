@@ -78,6 +78,11 @@ describe("BaseAutodiscoverRoute Tests (guard clauses only)", () => {
             expect(route.logger.warn).toHaveBeenCalledTimes(1);
             expect(route.easUrl).toBe("https://mail.example.com/Microsoft-Server-ActiveSync");
             expect(route.mapiUrl).toBeUndefined();
+            expect(route.nspiUrl).toBeUndefined();
+            // The address book comes with the mail store: both need the MAPI plugin.
+            PluginRegistry.setLoaded([{ name: "@rapidmx/mapi-plugin", version: "1.0.0" }]);
+            expect(route.mapiUrl).toBe("https://mail.example.com/mapi/emsmdb");
+            expect(route.nspiUrl).toBe("https://mail.example.com/mapi/nspi");
         } finally {
             PluginRegistry.setLoaded([]);
         }

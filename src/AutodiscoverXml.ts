@@ -230,7 +230,11 @@ export function buildPoxSuccessXml({ emailAddress, displayName, easUrl }: Autodi
 export interface AutodiscoverOutlookSuccess {
     emailAddress: string;
     displayName?: string;
+    /** The MAPI/HTTP `emsmdb` (mail store) endpoint. */
     mapiUrl: string;
+    /** The MAPI/HTTP `nspi` (address book) endpoint. Outlook can't finish setting up an account without one, so a caller that
+     * serves MAPI always passes it; left out, the response has no `AddressBook` block. */
+    nspiUrl?: string;
 }
 
 /**
@@ -248,16 +252,26 @@ export interface AutodiscoverOutlookSuccess {
  * request always gets the mapiHttp form - the real `X-MapiHttpCapability` request-header negotiation a full
  * implementation would consult to choose between EXCH/mapiHttp is not implemented, a documented gap.
  * `MailStore.InternalUrl`/`ExternalUrl` are both set to the same `mapiUrl`, since this library serves one URL
- * per deployment with no separate internal/external network split.
+ * per deployment with no separate internal/external network split. The `mapiHttp` `Protocol` also carries an `AddressBook`
+ * block (the `nspi` endpoint, `nspiUrl`) in the same shape: a MAPI/HTTP client uses the address book as well as the mail
+ * store, and Outlook stops right after the Autodiscover response - "Something went wrong and Outlook couldn't set up your
+ * account", with no request to either endpoint - when it is missing.
  *
  * `LegacyDN`/`DeploymentId` are schema-required fields this library has no real backing value for (no X.500
  * DN resolution, no multi-tenant deployment identity) - both are synthesized placeholders. Real Outlook does
  * not validate their exact content for MAPI/HTTP connectivity; they matter for classic RPC/TCP MAPI
  * free-busy/permissions lookups this library doesn't implement anyway.
  */
-export function buildOutlookSuccessXml({ emailAddress, displayName, mapiUrl }: AutodiscoverOutlookSuccess): string {
+export function buildOutlookSuccessXml({ emailAddress, displayName, mapiUrl, nspiUrl }: AutodiscoverOutlookSuccess): string {
     const email = escapeXml(emailAddress);
     const url = escapeXml(mapiUrl);
+    const addressBook = nspiUrl
+        ? `
+                <AddressBook>
+                    <InternalUrl>${escapeXml(nspiUrl)}</InternalUrl>
+                    <ExternalUrl>${escapeXml(nspiUrl)}</ExternalUrl>
+                </AddressBook>`
+        : "";
     const name = escapeXml(displayName ?? emailAddress);
     const legacyDn = escapeXml(
         `/o=ExchangeLabs/ou=Exchange Administrative Group (FYDIBOHF23SPDLT)/cn=Recipients/cn=${emailAddress}`,
@@ -279,7 +293,7 @@ export function buildOutlookSuccessXml({ emailAddress, displayName, mapiUrl }: A
                 <MailStore>
                     <InternalUrl>${url}</InternalUrl>
                     <ExternalUrl>${url}</ExternalUrl>
-                </MailStore>
+                </MailStore>${addressBook}
             </Protocol>
         </Account>
     </Response>

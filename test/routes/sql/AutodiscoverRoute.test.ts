@@ -169,6 +169,9 @@ describe("Route:AutodiscoverRouteSQL Tests", () => {
             expect(xml).toContain(`<AutoDiscoverSMTPAddress>${mailbox.primarySmtpAddress}</AutoDiscoverSMTPAddress>`);
             expect(xml).toContain('<Protocol Type="mapiHttp" Version="1">');
             expect(xml).toContain("<InternalUrl>https://mail.example.com/mapi/emsmdb</InternalUrl>");
+            expect(xml).toContain("<AddressBook>");
+            expect(xml).toContain("<InternalUrl>https://mail.example.com/mapi/nspi</InternalUrl>");
+            expect(xml).toContain("<ExternalUrl>https://mail.example.com/mapi/nspi</ExternalUrl>");
         });
 
         it("Rate limits repeated anonymous POX lookups (429) - this endpoint is an unauthenticated mailbox-existence oracle.", async () => {

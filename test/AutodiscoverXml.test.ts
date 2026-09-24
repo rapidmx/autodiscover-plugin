@@ -211,6 +211,7 @@ describe("AutodiscoverXml Tests", () => {
                 emailAddress: "chris@woodgrovebank.com",
                 displayName: "Chris Gray",
                 mapiUrl: "https://mail.example.com/mapi/emsmdb",
+                nspiUrl: "https://mail.example.com/mapi/nspi",
             });
 
             expect(xml).toContain('xmlns="http://schemas.microsoft.com/exchange/autodiscover/responseschema/2006"');
@@ -222,6 +223,16 @@ describe("AutodiscoverXml Tests", () => {
             expect(xml).toContain("<ExternalUrl>https://mail.example.com/mapi/emsmdb</ExternalUrl>");
             expect(xml).not.toContain("<Type>EXCH</Type>");
             expect(xml).not.toContain("<Type>EXPR</Type>");
+            // The address book is advertised in the same Protocol as the mail store: Outlook needs both to set an account up.
+            const protocol = xml.slice(xml.indexOf("<Protocol"), xml.indexOf("</Protocol>"));
+            expect(protocol).toMatch(/<MailStore>\s*<InternalUrl>https:\/\/mail\.example\.com\/mapi\/emsmdb<\/InternalUrl>\s*<ExternalUrl>https:\/\/mail\.example\.com\/mapi\/emsmdb<\/ExternalUrl>\s*<\/MailStore>\s*<AddressBook>\s*<InternalUrl>https:\/\/mail\.example\.com\/mapi\/nspi<\/InternalUrl>\s*<ExternalUrl>https:\/\/mail\.example\.com\/mapi\/nspi<\/ExternalUrl>\s*<\/AddressBook>/);
+        });
+
+        it("Leaves out the AddressBook block when no address book URL is given, and escapes it when there is one.", () => {
+            expect(buildOutlookSuccessXml({ emailAddress: "a@example.com", mapiUrl: "https://mail.example.com/mapi/emsmdb" })).not.toContain("AddressBook");
+            const xml = buildOutlookSuccessXml({ emailAddress: "a@example.com", mapiUrl: "https://mail.example.com/mapi/emsmdb", nspiUrl: "https://mail.example.com/mapi/nspi?x=1&y=2" });
+            expect(xml).toContain("<AddressBook>");
+            expect(xml).toContain("<InternalUrl>https://mail.example.com/mapi/nspi?x=1&amp;y=2</InternalUrl>");
         });
 
         it("Falls back to the email address as DisplayName when no display name is given.", () => {

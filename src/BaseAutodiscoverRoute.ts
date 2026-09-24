@@ -101,6 +101,11 @@ export abstract class BaseAutodiscoverRoute<M extends Mailbox> {
         return this.endpointUrl(MAPI_PLUGIN, "/mapi/emsmdb");
     }
 
+    /** The MAPI/HTTP `nspi` (address book) endpoint URL, reported beside `mapiUrl`: available exactly when it is. */
+    protected get nspiUrl(): string | undefined {
+        return this.endpointUrl(MAPI_PLUGIN, "/mapi/nspi");
+    }
+
     // Automatically injected by ObjectFactory on instantiation
     private _objectFactory?: ObjectFactory;
 
@@ -241,7 +246,7 @@ export abstract class BaseAutodiscoverRoute<M extends Mailbox> {
         // The display name is never disclosed to this anonymous caller (see the class doc): the address they
         // already supplied stands in for it, which keeps the Outlook schema's required `DisplayName` populated.
         const xml: string = outlook
-            ? buildOutlookSuccessXml({ emailAddress: email, displayName: email, mapiUrl: url })
+            ? buildOutlookSuccessXml({ emailAddress: email, displayName: email, mapiUrl: url, nspiUrl: this.nspiUrl })
             : buildPoxSuccessXml({ emailAddress: email, displayName: email, easUrl: url });
         // `text/xml`, not `application/xml`: real Exchange POX Autodiscover responses (per Microsoft's own
         // "Autodiscover for Exchange ActiveSync developers" example) use `text/xml`, and some older/strict

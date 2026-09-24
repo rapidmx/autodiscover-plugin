@@ -226,6 +226,9 @@ describe("Route:AutodiscoverRouteMongo Tests", () => {
             expect(xml).not.toContain("Ada Lovelace");
             expect(xml).toContain('<Protocol Type="mapiHttp" Version="1">');
             expect(xml).toContain("<InternalUrl>https://mail.example.com/mapi/emsmdb</InternalUrl>");
+            expect(xml).toContain("<AddressBook>");
+            expect(xml).toContain("<InternalUrl>https://mail.example.com/mapi/nspi</InternalUrl>");
+            expect(xml).toContain("<ExternalUrl>https://mail.example.com/mapi/nspi</ExternalUrl>");
             expect(xml).not.toContain("<autodiscover:Type>MobileSync</autodiscover:Type>");
         });
 
