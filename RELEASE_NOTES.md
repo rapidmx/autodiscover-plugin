@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v1.1.0
+
 ### Fixes
 
 * Rate limit the anonymous POX (`autodiscover.xml`) and Autodiscover v2 (`autodiscover.json/v1.0/:email`)

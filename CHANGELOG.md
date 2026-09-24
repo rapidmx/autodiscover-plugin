@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-09-24
+
+### Added
+- Added tests asserting 429 after repeated anonymous POX/v2 calls, and regression tests for a quoted > in an attribute value
+- Added a test proving two different queried addresses share one v2() rate-limit bucket, plus the equivalent confirmation test for pox() showing it never had this gap since its address is in the request body, not the URL
+
+### Changed
+- Rate limit the anonymous POX and Autodiscover v2 endpoints with @RateLimit(), matching restapi's BaseKeyDiscoveryRoute usage, so an anonymous caller can't enumerate real mailboxes by hammering either endpoint
+- Document both fixes in the release notes and NOTES
+- Change the POX success response Content-Type from application/xml to text/xml to match real Exchange Autodiscover responses, since some older/strict mobile clients hard-check the exact MIME type
+- Document the fix, the deferred escapeXml() control-character follow-up, and the compat change in the release notes and NOTES
+- Updated rapidrest and rapidmx deps
+
+### Fixed
+- Fixed the POX request XML tag scanner mis-extracting an element's text when a sibling attribute value on its opening tag contains a literal >, by tracking quote state instead of finding the first unquoted >
+- Fixed v2() rate limiting being keyed per queried email address instead of per endpoint, since RouteUtils.getRateLimitPath() substitutes the :email URL parameter into the auto-derived identifier, letting an anonymous caller enumerate addresses with a fresh, never-exceeded bucket each time; pass a fixed @RateLimit id so the budget is shared regardless of which or how many addresses are queried
+
 ## [1.0.0] - 2026-09-22
 
 ### Changed
@@ -77,7 +94,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - registered double, that job failed to start on every integration test run.
 - Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
 
-[Unreleased]: https://github.com/RapidMX/autodiscover/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/RapidMX/autodiscover/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/RapidMX/autodiscover/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/RapidMX/autodiscover/compare/v1.0.0-beta.2...v1.0.0
 [1.0.0-beta.2]: https://github.com/RapidMX/autodiscover/compare/v1.0.0-beta.1...v1.0.0-beta.2
 [1.0.0-beta.1]: https://github.com/RapidMX/autodiscover/compare/v1.0.0-beta.0...v1.0.0-beta.1
