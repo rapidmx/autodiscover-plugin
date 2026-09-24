@@ -25,6 +25,12 @@ describe("plugin entry points", () => {
         expect(parsePluginManifest(pkg)).toEqual(expect.objectContaining({ displayName: "Autodiscover" }));
     });
 
+    it("offers this server's address as the public server URL, for the administrator to save", () => {
+        const pkg = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"));
+        const setting = (parsePluginManifest(pkg) as any).settings.find((s: any) => s.key === "mail:autodiscover:public_url");
+        expect(setting.default).toBe("https://<host>");
+    });
+
     it("requires the plugins whose endpoints it advertises", () => {
         const pkg = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"));
         expect(Object.keys(pkg.rapidmx.plugin.requires).sort()).toEqual([ACTIVESYNC_PLUGIN, MAPI_PLUGIN].sort());

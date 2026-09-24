@@ -97,8 +97,8 @@
                     "key": "mail:autodiscover:public_url",
                     "label": "Public server URL",
                     "type": "string",
-                    "default": "",
-                    "help": "The address clients reach this server at, for example https://mail.example.com - the same host your DNS/MX setup already points at. Nothing is advertised until this is set. Also add a CNAME (autodiscover.<domain> -> this host) or, to avoid needing a second TLS certificate, a DNS SRV record (_autodiscover._tcp.<domain> -> this host) so mail clients can find this server automatically - see this deployment's Domain DNS setup checklist."
+                    "default": "https://<host>",
+                    "help": "The address clients reach this server at - the same host your DNS/MX setup already points at. Filled in with this server's address when the plugin is installed. Nothing is advertised until this is set. Also add a CNAME (autodiscover.<domain> -> this host) or, to avoid needing a second TLS certificate, a DNS SRV record (_autodiscover._tcp.<domain> -> this host) so mail clients can find this server automatically - see this deployment's Domain DNS setup checklist."
                 }
             ],
             "requires": {

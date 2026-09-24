@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+* The "Public server URL" setting defaults to `https://<host>`, which the server saves with its own host when the plugin is installed, so Autodiscover answers with no further steps. Needs `@rapidmx/restapi` with `<host>` defaults; an older server saves nothing for it, as before, and the admin console's form offers the address to save.
+
 ## v1.1.0
 
 ### Fixes
