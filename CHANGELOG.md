@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-09-25
+
+### Changed
+- Default the public server URL setting to https://<host> so Autodiscover answers as installed
+- Test the manifest default
+- Document the change in the release notes
+- Advertise the MAPI/HTTP address book (/mapi/nspi) in the Outlook Autodiscover response beside the mail store, because Outlook stopped right after a response with only a MailStore and reported that it couldn't set up the account
+- Report the address book URL exactly when the MAPI plugin is active, and document nspiUrl in the README subclass example
+- Test the address book block in the builder and in the Mongo and SQL routes
+- Document the change in the release notes
+- Bump the @rapidmx/restapi development dependency to 0.21.1 and refresh the lockfile, leaving the peer range unchanged
+- Document the bump in the release notes
+
 ## [1.1.0] - 2026-09-24
 
 ### Added
@@ -94,7 +107,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - registered double, that job failed to start on every integration test run.
 - Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
 
-[Unreleased]: https://github.com/RapidMX/autodiscover/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/RapidMX/autodiscover/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/RapidMX/autodiscover/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/RapidMX/autodiscover/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/RapidMX/autodiscover/compare/v1.0.0-beta.2...v1.0.0
 [1.0.0-beta.2]: https://github.com/RapidMX/autodiscover/compare/v1.0.0-beta.1...v1.0.0-beta.2

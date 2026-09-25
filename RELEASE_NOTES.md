@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v1.1.1
+
 ### Changed
 
 * Bump the `@rapidmx/restapi` development dependency to `^0.21.1` (peer range unchanged) and rebuild against it.
