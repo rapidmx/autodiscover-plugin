@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-09-25
+
+### Changed
+- Document that a downstream package's release bump level follows its upstream dependency's, minor for minor, patch for patch and major for major, in NOTES
+- Upgraded restapi dep
+
+### Fixed
+- Fixed repository URL
+
 ## [1.1.1] - 2026-09-25
 
 ### Changed
@@ -107,7 +116,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - registered double, that job failed to start on every integration test run.
 - Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
 
-[Unreleased]: https://github.com/RapidMX/autodiscover/compare/v1.1.1...HEAD
+[Unreleased]: https://github.com/rapidmx/autodiscover/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/rapidmx/autodiscover/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/RapidMX/autodiscover/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/RapidMX/autodiscover/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/RapidMX/autodiscover/compare/v1.0.0-beta.2...v1.0.0
