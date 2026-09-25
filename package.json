@@ -27,7 +27,7 @@
         "@rapidrest/service-core": "^2.x"
     },
     "devDependencies": {
-        "@rapidmx/restapi": "^0.20.1",
+        "@rapidmx/restapi": "^0.21.1",
         "@rapidrest/core": "^6.0.0",
         "@rapidrest/service-core": "^2.3.0",
         "@swc/core": "^1.16.2",

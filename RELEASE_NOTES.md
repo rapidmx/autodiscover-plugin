@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+* Bump the `@rapidmx/restapi` development dependency to `^0.21.1` (peer range unchanged) and rebuild against it.
+
 ### Fixed
 
 * Advertise the MAPI/HTTP address book (`/mapi/nspi`) in the Outlook Autodiscover response, beside the mail store. The
