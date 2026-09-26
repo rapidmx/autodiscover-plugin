@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-09-26
+
+### Changed
+- Updated restapi dep
+
 ## [1.3.0] - 2026-09-26
 
 ### Changed
@@ -127,7 +132,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - registered double, that job failed to start on every integration test run.
 - Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
 
-[Unreleased]: https://github.com/rapidmx/autodiscover-plugin/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/rapidmx/autodiscover-plugin/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/rapidmx/autodiscover-plugin/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/rapidmx/autodiscover-plugin/compare/v1.2.1...v1.3.0
 [1.2.1]: https://github.com/rapidmx/autodiscover-plugin/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/rapidmx/autodiscover/compare/v1.1.1...v1.2.0
