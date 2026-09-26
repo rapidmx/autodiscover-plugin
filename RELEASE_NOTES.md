@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v1.3.0
+
 ### Changed
 
 - The development dependency on `@rapidmx/restapi` is 0.23.0 (was 0.22.1); the plugin is otherwise unchanged. A minor bump because restapi's release is a minor.
