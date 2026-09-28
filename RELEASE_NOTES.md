@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v1.4.1
+
 ### Fixed
 
 - **Autodiscover v2 (`GET .../autodiscover.json/v1.0/:email`) now answers `Protocol=AutodiscoverV1`**, returning this deployment's own classic POX Autodiscover URL. Real Outlook desktop periodically re-queries the v2 JSON endpoint for this protocol value to bootstrap/re-validate the classic endpoint's location - confirmed against a real Outlook desktop capture, not assumed from the spec alone - and previously got a `400 ProtocolNotSupported` every time, on an endpoint this client hits repeatedly during its own connectivity re-validation.

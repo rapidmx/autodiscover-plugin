@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-09-28
+
+### Added
+- Added a test mirroring the existing ActiveSync success case for the new branch
+
+### Changed
+- Answer Autodiscover v2's Protocol=AutodiscoverV1 with this deployment's own classic POX Autodiscover URL, instead of the 400 ProtocolNotSupported it always got before
+- Found from a real Outlook desktop Fiddler capture (headers included) showing it periodically calling this exact query throughout its connection lifecycle, not just once at setup, and confirmed the expected response shape against MS-OXDSCLI rather than assuming it
+- Resolve the URL per protocol value instead of hardcoding ActiveSync, echoing back whichever protocol was actually asked for
+
 ## [1.4.0] - 2026-09-26
 
 ### Changed
@@ -132,7 +142,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - registered double, that job failed to start on every integration test run.
 - Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
 
-[Unreleased]: https://github.com/rapidmx/autodiscover-plugin/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/rapidmx/autodiscover-plugin/compare/v1.4.1...HEAD
+[1.4.1]: https://github.com/rapidmx/autodiscover-plugin/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/rapidmx/autodiscover-plugin/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/rapidmx/autodiscover-plugin/compare/v1.2.1...v1.3.0
 [1.2.1]: https://github.com/rapidmx/autodiscover-plugin/compare/v1.2.0...v1.2.1
