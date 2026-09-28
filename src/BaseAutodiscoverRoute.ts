@@ -255,9 +255,13 @@ export abstract class BaseAutodiscoverRoute<M extends Mailbox> {
     }
 
     /**
-     * Autodiscover v2 (JSON). Only the `ActiveSync` protocol is served - this library has no EWS/other
-     * protocol surface to advertise - so any other `Protocol` value is rejected outright rather than silently
-     * answered with an EAS URL under the wrong protocol name.
+     * Autodiscover v2 (JSON). Two `Protocol` values are served: `ActiveSync` (this library's own EAS
+     * endpoint) and `AutodiscoverV1` - real Outlook desktop's own periodic connectivity re-validation
+     * queries this v2 JSON endpoint for `Protocol=AutodiscoverV1` to bootstrap the location of the classic
+     * POX Autodiscover endpoint ([MS-OXDSCLI]'s own documented v2-to-classic chaining; confirmed against a
+     * real Outlook desktop capture - see `.claude/NOTES.md`'s dated entry - not assumed from the spec alone).
+     * Any other `Protocol` value is rejected outright rather than silently answered with a URL under the
+     * wrong protocol name.
      */
     @RateLimit({ id: V2_LOOKUP_RATE_LIMIT_ID })
     @Get("/autodiscover.json/v1.0/:email")
@@ -270,9 +274,13 @@ export abstract class BaseAutodiscoverRoute<M extends Mailbox> {
             res.status(500).send();
             return;
         }
-        // An unsupported protocol and ActiveSync not being available here get the same answer.
-        const easUrl: string | undefined = this.easUrl;
-        if (protocol !== "ActiveSync" || !easUrl) {
+        // AutodiscoverV1 points at this same class's own pox() route - the base URL plus its mount path,
+        // exactly like easUrl/mapiUrl build their own endpoint URLs, just not gated by PluginRegistry since
+        // this class (not a separate plugin) is always what serves it.
+        const base: string | undefined = this.baseUrl;
+        const url: string | undefined =
+            protocol === "ActiveSync" ? this.easUrl : protocol === "AutodiscoverV1" && base ? `${base}/autodiscover/autodiscover.xml` : undefined;
+        if (!url) {
             res.status(400).json({
                 ErrorCode: "ProtocolNotSupported",
                 ErrorMessage: `Unsupported protocol: ${protocol ?? ""}`,
@@ -291,6 +299,6 @@ export abstract class BaseAutodiscoverRoute<M extends Mailbox> {
             return;
         }
 
-        res.status(200).json({ Protocol: "ActiveSync", Url: easUrl });
+        res.status(200).json({ Protocol: protocol, Url: url });
     }
 }

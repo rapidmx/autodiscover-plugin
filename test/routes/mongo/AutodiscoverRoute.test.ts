@@ -330,6 +330,20 @@ describe("Route:AutodiscoverRouteMongo Tests", () => {
             });
         });
 
+        it("Returns the classic POX Autodiscover URL for Protocol=AutodiscoverV1, real Outlook desktop's own periodic re-validation query.", async () => {
+            const mailbox = await createMailbox();
+
+            const result = await request(server.getApplication()).get(
+                `${baseUrl}/autodiscover.json/v1.0/${encodeURIComponent(mailbox.primarySmtpAddress)}?Protocol=AutodiscoverV1`,
+            );
+
+            expect(result.status).toBe(200);
+            expect(result.body).toEqual({
+                Protocol: "AutodiscoverV1",
+                Url: "https://mail.example.com/autodiscover/autodiscover.xml",
+            });
+        });
+
         it("Matches against aliasAddresses, not only primarySmtpAddress.", async () => {
             const alias = `${uuid.v4()}@example.com`;
             await createMailbox({ aliasAddresses: [alias] });
