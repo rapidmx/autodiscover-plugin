@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v1.4.2
+
 ## v1.4.1
 
 ### Fixed

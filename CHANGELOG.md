@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.2] - 2026-09-29
+
+### Added
+- Added the missing "Enable corepack" step to the validate job - every other job already has it, and without it yarn runs the container's stock Yarn 1.22.22 instead of the packageManager-pinned version, which refuses to run at all against a packageManager field, so validate's yarn npm audit never actually ran regardless of real findings. Confirmed on rapidmx/server's identical job via a real CI log; this repo's validate job is the same template and shares the same latent gap even where it happened not to manifest yet
+
+### Changed
+- Document the standing wait-for-green-CI-before-releasing rule in NOTES, per JP
+- Bump the @rapidmx/restapi development dependency to ^0.25.1, now that it's published
+
 ## [1.4.1] - 2026-09-28
 
 ### Added
@@ -142,7 +151,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - registered double, that job failed to start on every integration test run.
 - Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
 
-[Unreleased]: https://github.com/rapidmx/autodiscover-plugin/compare/v1.4.1...HEAD
+[Unreleased]: https://github.com/rapidmx/autodiscover-plugin/compare/v1.4.2...HEAD
+[1.4.2]: https://github.com/rapidmx/autodiscover-plugin/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/rapidmx/autodiscover-plugin/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/rapidmx/autodiscover-plugin/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/rapidmx/autodiscover-plugin/compare/v1.2.1...v1.3.0
