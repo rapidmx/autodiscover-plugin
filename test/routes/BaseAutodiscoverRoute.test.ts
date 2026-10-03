@@ -68,13 +68,13 @@ describe("BaseAutodiscoverRoute Tests (guard clauses only)", () => {
         route.logger = { warn: vi.fn() };
         vi.spyOn(objectFactory, "newInstance").mockResolvedValue({} as any);
         route.publicUrl = "";
-        await route.init();
+        await route.initialize();
         expect(route.logger.warn).toHaveBeenCalledWith(expect.stringMatching(/mail:autodiscover:public_url/));
         PluginRegistry.setLoaded([{ name: "@rapidmx/activesync-plugin", version: "1.0.0" }]);
         try {
             expect(route.easUrl).toBeUndefined();
             route.publicUrl = "https://mail.example.com//";
-            await route.init();
+            await route.initialize();
             expect(route.logger.warn).toHaveBeenCalledTimes(1);
             expect(route.easUrl).toBe("https://mail.example.com/Microsoft-Server-ActiveSync");
             expect(route.mapiUrl).toBeUndefined();
@@ -105,7 +105,7 @@ describe("BaseAutodiscoverRoute Tests (guard clauses only)", () => {
             ]) {
                 route.logger = { warn: vi.fn() };
                 route.publicUrl = bad;
-                await route.init();
+                await route.initialize();
                 expect(route.logger.warn).toHaveBeenCalledWith(expect.stringMatching(/not a valid https/));
                 expect(route.easUrl).toBeUndefined();
             }
@@ -116,13 +116,36 @@ describe("BaseAutodiscoverRoute Tests (guard clauses only)", () => {
             ]) {
                 route.logger = { warn: vi.fn() };
                 route.publicUrl = good;
-                await route.init();
+                await route.initialize();
                 expect(route.logger.warn).not.toHaveBeenCalled();
                 expect(route.easUrl).toBe(expected);
             }
         } finally {
             PluginRegistry.setLoaded([]);
         }
+    });
+
+    it("initialize() throws without an objectFactory.", async () => {
+        // A bare object has no `_objectFactory`, standing in for a route built outside the factory.
+        await expect((BaseAutodiscoverRoute.prototype as any).initialize.call({})).rejects.toThrow("objectFactory is not set.");
+    });
+
+    it("initialize() builds the mailbox repository once with exactly { name, args }, and skips when unset.", async () => {
+        const route: any = objectFactory.newInstance<TestAutodiscoverRoute>(TestAutodiscoverRoute, { initialize: false });
+        const unset: any = objectFactory.newInstance<TestAutodiscoverRoute>(TestAutodiscoverRoute, { initialize: false });
+        unset.mailboxClass = undefined;
+        const repo: any = {};
+        const spy = vi.spyOn(objectFactory, "newInstance").mockResolvedValue(repo);
+        await route.initialize();
+        expect(spy).toHaveBeenCalledTimes(1);
+        expect(spy).toHaveBeenCalledWith(expect.anything(), { name: "TestMailbox", args: [route.mailboxClass] });
+        expect(route.mailboxRepo).toBe(repo);
+        await route.initialize();
+        expect(spy).toHaveBeenCalledTimes(1);
+
+        await unset.initialize();
+        expect(spy).toHaveBeenCalledTimes(1);
+        expect(unset.mailboxRepo).toBeUndefined();
     });
 
     it("pox() sends a 413 for an oversized body before scanning it.", async () => {

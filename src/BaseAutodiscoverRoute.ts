@@ -109,7 +109,7 @@ export abstract class BaseAutodiscoverRoute<M extends Mailbox> {
     // Automatically injected by ObjectFactory on instantiation
     private _objectFactory?: ObjectFactory;
 
-    private mailboxRepo?: RepoUtils<M>;
+    protected mailboxRepo?: RepoUtils<M>;
 
     @Logger
     private logger: any;
@@ -161,7 +161,10 @@ export abstract class BaseAutodiscoverRoute<M extends Mailbox> {
     }
 
     @Init
-    public async init(): Promise<void> {
+    protected async initialize(): Promise<void> {
+        if (!this._objectFactory) {
+            throw new Error("objectFactory is not set.");
+        }
         if (!this.publicUrl.trim()) {
             this.logger?.warn("Autodiscover has no mail:autodiscover:public_url set, so it can't point clients at any protocol.");
         } else if (!this.baseUrl) {
@@ -170,10 +173,12 @@ export abstract class BaseAutodiscoverRoute<M extends Mailbox> {
                     "fragment, so it can't point clients at any protocol.",
             );
         }
-        this.mailboxRepo = await this._objectFactory!.newInstance(RepoUtils, {
-            name: this.mailboxClass.name,
-            args: [this.mailboxClass],
-        });
+        if (!this.mailboxRepo && this.mailboxClass) {
+            this.mailboxRepo = await this._objectFactory.newInstance(RepoUtils, {
+                name: this.mailboxClass.name,
+                args: [this.mailboxClass],
+            });
+        }
     }
 
     /**
