@@ -31,8 +31,9 @@ describe("plugin entry points", () => {
         expect(setting.default).toBe("https://<host>");
     });
 
-    it("requires the plugins whose endpoints it advertises", () => {
+    it("does not hard-require either plugin whose endpoint it can advertise - both are optional, detected at runtime via PluginRegistry.isActive(), so a deployment can install this with just ActiveSync, just MAPI, or both.", () => {
         const pkg = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"));
-        expect(Object.keys(pkg.rapidmx.plugin.requires).sort()).toEqual([ACTIVESYNC_PLUGIN, MAPI_PLUGIN].sort());
+        const requires = pkg.rapidmx.plugin.requires ?? {};
+        expect(Object.keys(requires)).not.toEqual(expect.arrayContaining([ACTIVESYNC_PLUGIN, MAPI_PLUGIN]));
     });
 });
