@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-10-09
+
+### Changed
+- Publish a prerelease version to npm under the next tag, which npm requires, and a release under latest
+- Build the mailbox repository of the autodiscover route once in a guarded @Init hook rather than on every request
+- Pin tar and undici to the versions that fix their advisories, which only the build tooling of the development dependencies pulls in
+- Stop hard-requiring both activesync-plugin and mapi-plugin in this plugin's manifest, since the route already detects and advertises only whichever is actually installed
+
 ## [1.4.2] - 2026-09-29
 
 ### Added
@@ -151,7 +159,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - registered double, that job failed to start on every integration test run.
 - Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
 
-[Unreleased]: https://github.com/rapidmx/autodiscover-plugin/compare/v1.4.2...HEAD
+[Unreleased]: https://github.com/rapidmx/autodiscover-plugin/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/rapidmx/autodiscover-plugin/compare/v1.4.2...v1.5.0
 [1.4.2]: https://github.com/rapidmx/autodiscover-plugin/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/rapidmx/autodiscover-plugin/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/rapidmx/autodiscover-plugin/compare/v1.3.0...v1.4.0

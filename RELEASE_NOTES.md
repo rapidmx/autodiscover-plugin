@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v1.5.0
+
 ### Fixed
 
 - **`@rapidmx/activesync-plugin` and `@rapidmx/mapi-plugin` are no longer hard-required by this plugin's manifest** - a deployment can now install Autodiscover with just one of them, or both. `BaseAutodiscoverRoute` already detected which protocols were actually active at runtime (`PluginRegistry.isActive()`) and only advertised what's installed; the manifest's own `requires` block contradicted that by refusing to load this plugin at all unless *both* siblings were present, so a server that only wanted to offer ActiveSync (or only MAPI) couldn't install Autodiscover on its own. Follows the same optional-sibling pattern `booking-plugin` already uses for its own optional videoconferencing dependency.
