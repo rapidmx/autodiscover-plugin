@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-11-05
+
+### Added
+- Added the rule that the more specific agent model assignment wins where categories overlap
+- Added the RapidREST Claude Code plugin to the project settings
+
+### Changed
+- Publish only from a release tag's own Build, and only once every Build of that commit has finished green
+- Record the standing agent model assignments in the project notes
+- Move the agent model assignments to the top of the project notes, keeping session history at the bottom
+- Update the agent model assignments to JP's revised criteria: Sonnet for general code and review, Opus for architecture, planning, investigation, security and performance, Haiku for simple operations
+- Upgrade @rapidrest/core to 6.1.0 and @rapidrest/service-core to 2.5.1
+- Raise the @rapidrest/core peer range from 5.x to 6.x, which @rapidrest/service-core 2.5 requires
+- Upgrade @rapidmx/restapi to ^0.36.0
+- Upgrade every other dependency to its latest release, keeping typescript on 6.x
+- Install corepack globally before enabling it in CI, since the node:lts images no longer bundle it
+- Upgrade @rapidmx/restapi to ^0.37.0
+
 ## [1.6.0] - 2026-10-24
 
 ### Changed
@@ -164,7 +182,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - registered double, that job failed to start on every integration test run.
 - Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
 
-[Unreleased]: https://github.com/rapidmx/autodiscover-plugin/compare/v1.6.0...HEAD
+[Unreleased]: https://github.com/rapidmx/autodiscover-plugin/compare/v1.7.0...HEAD
+[1.7.0]: https://github.com/rapidmx/autodiscover-plugin/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/rapidmx/autodiscover-plugin/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/rapidmx/autodiscover-plugin/compare/v1.4.2...v1.5.0
 [1.4.2]: https://github.com/rapidmx/autodiscover-plugin/compare/v1.4.1...v1.4.2
